@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+
+  iots-postgres:
+    image: postgis/postgis:15-3.3
+    container_name: iots-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: iots_db
+      POSTGRES_USER: iots_user
+      POSTGRES_PASSWORD: /iots_pass@1
+    ports:
+      - "1000:5432"
+    volumes:
+      - iots_postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iots_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  iots-keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: iots-keycloak
+    command: start-dev
+    restart: always
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: dev-mem
+    ports:
+      - "1001:8080"
+    depends_on:
+      iots-postgres:
+        condition: service_healthy
+
+volumes:
+  iots_postgres_data:
+    name: iots_postgres_data

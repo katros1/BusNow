@@ -3,3 +3,7 @@ databaseChangeLog:
       file: db/changelog/changes/001-init.sql
   - include:
       file: db/changelog/changes/002-create-stop-terminal-tables.sql
+  - include:
+      file: db/changelog/changes/003-create-route-tables.sql
+  - include:
+      file: db/changelog/changes/004-route-columns-rt-prefix.sql

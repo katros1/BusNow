@@ -1,10 +1,13 @@
 package ba.backend.route.entity;
 
+import ba.backend.routecode.entity.RouteCodeEntity;
 import ba.backend.shared.entity.BaseEntity;
 import ba.backend.terminal.entity.BusParkEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -32,6 +35,14 @@ public class RouteEntity extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "rt_end_bus_park_id", nullable = false)
     private BusParkEntity endBusPark;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rt_code_id")
+    private RouteCodeEntity routeCode;
+
+    @Column(name = "rt_direction")
+    @Enumerated(EnumType.STRING)
+    private RouteDirection direction;
 
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequence ASC")
@@ -67,6 +78,14 @@ public class RouteEntity extends BaseEntity {
         return routeStops;
     }
 
+    public RouteCodeEntity getRouteCode() {
+        return routeCode;
+    }
+
+    public RouteDirection getDirection() {
+        return direction;
+    }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -81,5 +100,13 @@ public class RouteEntity extends BaseEntity {
 
     public void setEndBusPark(BusParkEntity endBusPark) {
         this.endBusPark = endBusPark;
+    }
+
+    public void setRouteCode(RouteCodeEntity routeCode) {
+        this.routeCode = routeCode;
+    }
+
+    public void setDirection(RouteDirection direction) {
+        this.direction = direction;
     }
 }

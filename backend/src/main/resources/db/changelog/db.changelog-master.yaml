@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changes/003-create-route-tables.sql
   - include:
       file: db/changelog/changes/004-route-columns-rt-prefix.sql
+  - include:
+      file: db/changelog/changes/005-fleet-driver-bus-route-code.sql

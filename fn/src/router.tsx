@@ -1,35 +1,77 @@
-import {createRootRoute, createRoute, createRouter, Outlet} from "@tanstack/react-router";
-import Vehicles from "./app/vehicles";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+} from "@tanstack/react-router";
+import { DashboardLayout } from "./app/dashboard/layout";
 import Dashboard from "./app/dashboard";
+import { Placeholder } from "@/components/feedback/Placeholder";
+import Vehicles from "./app/vehicles";
 
-const rootRouter = createRootRoute({
-    component: () => (
-        <div>
-            <Outlet/>
-        </div>
-    ),
-})
+// ── Root ──────────────────────────────────────────────────────
+const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
+// ── Layout shell (pathless — wraps all pages) ──────────────────
+const layoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "layout",
+  component: DashboardLayout,
+});
+
+// ── Pages ──────────────────────────────────────────────────────
 const dashboardRoute = createRoute({
-    getParentRoute: () => rootRouter,
-    path:"/",
-    component: Dashboard,
-})
+  getParentRoute: () => layoutRoute,
+  path: "/",
+  component: Dashboard,
+});
 
 const vehiclesRoute = createRoute({
-    getParentRoute: () => rootRouter,
-    path:"/vehicle",
-    component: Vehicles,
-})
+  getParentRoute: () => layoutRoute,
+  path: "/vehicles",
+  component: Vehicles,
+});
 
-const routeTree = rootRouter.addChildren([dashboardRoute, vehiclesRoute])
+const routesRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/routes",
+  component: () => <Placeholder name="Routes" />,
+});
 
-export const router = createRouter({
-    routeTree,
-})
+const stopsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/stops",
+  component: () => <Placeholder name="Stops" />,
+});
+
+const parksRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/parks",
+  component: () => <Placeholder name="Parks" />,
+});
+
+const trackingRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/tracking",
+  component: () => <Placeholder name="Live Tracking" />,
+});
+
+// ── Route tree ─────────────────────────────────────────────────
+const routeTree = rootRoute.addChildren([
+  layoutRoute.addChildren([
+    dashboardRoute,
+    vehiclesRoute,
+    routesRoute,
+    stopsRoute,
+    parksRoute,
+    trackingRoute,
+  ]),
+]);
+
+export const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
-    export interface Register {
-        router: typeof router
-    }
+  interface Register {
+    router: typeof router;
+  }
 }

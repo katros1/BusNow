@@ -42,6 +42,9 @@ const routesRoute = createRoute({
   component: () => <Placeholder name="Routes" />,
 });
 
+import EditStop from "./app/stops/pages/EditStop";
+import EditPark from "./app/parks/pages/EditPark";
+
 const stopsRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/stops",
@@ -54,6 +57,12 @@ const newStopRoute = createRoute({
   component: NewStop,
 });
 
+const editStopRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/stops/$stopId/edit",
+  component: EditStop,
+});
+
 const parksRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/parks",
@@ -64,6 +73,12 @@ const newParkRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/parks/new",
   component: NewPark,
+});
+
+const editParkRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/parks/$parkId/edit",
+  component: EditPark,
 });
 
 const trackingRoute = createRoute({
@@ -79,9 +94,11 @@ const routeTree = rootRoute.addChildren([
     vehiclesRoute,
     routesRoute,
     stopsRoute,
-    parksRoute,
     newStopRoute,
+    editStopRoute,
+    parksRoute,
     newParkRoute,
+    editParkRoute,
     trackingRoute,
   ]),
 ]);

@@ -4,26 +4,19 @@ import L from "leaflet";
 import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
 
-// ── Public types ─────────────────────────────────────────────────────────────
-
 export type ShapeType = "polygon" | "polyline";
 
 export interface DrawnShape {
-  /** Stable unique ID for this shape — survives re-renders. */
   id: string;
   type: ShapeType;
-  /** Flat ring for polylines; nested rings for polygons (outer + holes). */
   latlngs: L.LatLng[] | L.LatLng[][];
-  /** Vertex count (total points in the outer ring). */
   vertexCount: number;
 }
 
 interface DrawControlProps {
-  /** Fired after every draw / edit / delete with the full current shape list. */
   onChange?: (shapes: DrawnShape[]) => void;
+  initialCoordinates?: [number, number][];
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function uid(): string {
   return crypto.randomUUID();
@@ -41,7 +34,6 @@ function vertexCount(layer: L.Layer): number {
 }
 
 function layerToShape(id: string, layer: L.Layer): DrawnShape | null {
-  // L.Polygon extends L.Polyline, so check Polygon first
   if (layer instanceof L.Polygon) {
     return {
       id,
@@ -61,25 +53,34 @@ function layerToShape(id: string, layer: L.Layer): DrawnShape | null {
   return null;
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
-
-/**
- * Mounts Leaflet.draw inside a <MapContainer>.
- *
- * Supports:  polygon, polyline
- * Disabled:  rectangle, circle, circlemarker, marker
- * Tracks every shape with a stable UUID so callers can correlate
- * drawn geometries with backend records.
- */
-function DrawControl({ onChange }: DrawControlProps) {
+function DrawControl({ onChange, initialCoordinates }: DrawControlProps) {
   const map = useMap();
   const drawnItemsRef = useRef<L.FeatureGroup>(new L.FeatureGroup());
-  /** layer → DrawnShape (keeps IDs stable across edits) */
   const shapeMapRef = useRef<Map<L.Layer, DrawnShape>>(new Map());
 
   useEffect(() => {
     const drawnItems = drawnItemsRef.current;
     const shapeMap = shapeMapRef.current;
+    
+    drawnItems.clearLayers();
+    shapeMap.clear();
+
+    if (initialCoordinates && initialCoordinates.length > 0) {
+      const polygon = L.polygon(initialCoordinates, {
+        color: "#005BBF",
+        weight: 2,
+        opacity: 1,
+        fillColor: "#1a73e8",
+        fillOpacity: 0.12,
+      });
+      drawnItems.addLayer(polygon);
+      shapeMap.set(polygon, layerToShape(uid(), polygon)!);
+      
+      requestAnimationFrame(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        try { map.fitBounds(polygon.getBounds(), { padding: [20, 20], maxZoom: 16 }); } catch (_e) { /* default to view */ }
+      });
+    }
 
     map.addLayer(drawnItems);
 
@@ -133,7 +134,7 @@ function DrawControl({ onChange }: DrawControlProps) {
     const emit = () => {
       if (!onChange) return;
       const shapes: DrawnShape[] = [];
-      shapeMap.forEach((shape) => shapes.push(shape));
+      shapeMap.forEach((shape: DrawnShape) => shapes.push(shape));
       onChange(shapes);
     };
 

@@ -1,7 +1,8 @@
-import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react"
+import { useState } from "react"
+import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal, } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { parksApi } from "./api/parks.api"
-import { useDeletePark } from "./api/parks.mutations"
+import { useDeletePark, } from "./api/parks.mutations"
 import { parkKeys } from "./api/parks.keys"
 import { useNavigate } from "@tanstack/react-router"
 import {
@@ -21,11 +22,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal"
+
 import type { Park } from "./api/parks.types"
 
 export default function Parks() {
     const navigate = useNavigate()
-    const deletePark = useDeletePark()
+    
+    const [deletePark, setDeletePark] = useState<Park | null>(null);
+
+    const deleteParkMut = useDeletePark()
 
     const { data: parks = [], isLoading, isError, error } = useQuery({
         queryKey: parkKeys.lists(),
@@ -109,16 +115,15 @@ export default function Parks() {
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
                             className="p-2 hover:bg-primary/10 rounded-lg text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                            onClick={() => {
+                                navigate({ to: "/parks/$parkId/edit", params: { parkId: park.id } });
+                            }}
                         >
                             <Edit className="h-[15px] w-[15px]" />
                         </button>
                         <button 
                             className="p-2 hover:bg-error-container rounded-lg text-muted-foreground hover:text-error transition-colors cursor-pointer"
-                            onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${park.name}?`)) {
-                                    deletePark.mutate(park.id)
-                                }
-                            }}
+                            onClick={() => setDeletePark(park)}
                         >
                             <Trash className="h-[15px] w-[15px]" />
                         </button>
@@ -242,7 +247,6 @@ export default function Parks() {
                     </Table>
                 </div>
                 
-                {/* Minimal Pagination */}
                 <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
                     <p className="text-[12px] text-muted-foreground font-medium">
                         Showing <span className="font-semibold text-primary">{parks.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> to <span className="font-semibold text-primary">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, parks.length)}</span> of <span className="font-semibold text-primary">{parks.length}</span>
@@ -280,6 +284,15 @@ export default function Parks() {
                     </div>
                 </div>
             </div>
+
+            {/* DELETE MODAL */}
+            <ConfirmDeleteModal 
+                isOpen={!!deletePark}
+                onClose={() => setDeletePark(null)}
+                onConfirm={() => deletePark && deleteParkMut.mutate(deletePark.id)}
+                entityName={deletePark?.name}
+                entityType="Park"
+            />
         </div>
     )
 }

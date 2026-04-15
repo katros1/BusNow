@@ -31,9 +31,10 @@ function RwandaBoundsEnforcer() {
 export interface MapViewProps {
   /** Fires whenever shapes are drawn, edited, or deleted. */
   onShapesChange?: (shapes: DrawnShape[]) => void;
+  initialCoordinates?: [number, number][];
 }
 
-function MapView({ onShapesChange }: MapViewProps) {
+function MapView({ onShapesChange, initialCoordinates }: MapViewProps) {
   return (
     <MapContainer
       center={RWANDA_CENTER}
@@ -62,7 +63,7 @@ function MapView({ onShapesChange }: MapViewProps) {
       <SearchControl />
 
       {/* Polygon + polyline draw toolbar */}
-      <DrawControl onChange={onShapesChange} />
+      <DrawControl onChange={onShapesChange} initialCoordinates={initialCoordinates} />
     </MapContainer>
   );
 }

@@ -1,7 +1,8 @@
-import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react"
+import { useState } from "react"
+import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal, } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { stopsApi } from "./api/stops.api"
-import { useDeleteStop } from "./api/stops.mutations"
+import { useDeleteStop, } from "./api/stops.mutations"
 import { stopKeys } from "./api/stops.keys"
 import { useNavigate } from "@tanstack/react-router"
 import {
@@ -21,11 +22,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal"
+
 import type { Stop } from "./api/stops.types"
 
 export default function Stops() {
     const navigate = useNavigate()
-    const deleteStop = useDeleteStop()
+    
+    const [deleteStop, setDeleteStop] = useState<Stop | null>(null);
+
+    const deleteStopMut = useDeleteStop()
 
     const { data: stops = [], isLoading, isError, error } = useQuery({
         queryKey: stopKeys.lists(),
@@ -109,16 +115,15 @@ export default function Stops() {
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
                             className="p-2 hover:bg-primary/10 rounded-lg text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                            onClick={() => {
+                                navigate({ to: "/stops/$stopId/edit", params: { stopId: stop.id } });
+                            }}
                         >
                             <Edit className="h-[15px] w-[15px]" />
                         </button>
                         <button 
                             className="p-2 hover:bg-error-container rounded-lg text-muted-foreground hover:text-error transition-colors cursor-pointer"
-                            onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${stop.name}?`)) {
-                                    deleteStop.mutate(stop.id)
-                                }
-                            }}
+                            onClick={() => setDeleteStop(stop)}
                         >
                             <Trash className="h-[15px] w-[15px]" />
                         </button>
@@ -242,7 +247,6 @@ export default function Stops() {
                     </Table>
                 </div>
                 
-                {/* Minimal Pagination */}
                 <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
                     <p className="text-[12px] text-muted-foreground font-medium">
                         Showing <span className="font-semibold text-primary">{stops.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> to <span className="font-semibold text-primary">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, stops.length)}</span> of <span className="font-semibold text-primary">{stops.length}</span>
@@ -280,6 +284,15 @@ export default function Stops() {
                     </div>
                 </div>
             </div>
+
+            {/* DELETE MODAL */}
+            <ConfirmDeleteModal 
+                isOpen={!!deleteStop}
+                onClose={() => setDeleteStop(null)}
+                onConfirm={() => deleteStop && deleteStopMut.mutate(deleteStop.id)}
+                entityName={deleteStop?.name}
+                entityType="Stop"
+            />
         </div>
     )
 }

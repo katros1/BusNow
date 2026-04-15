@@ -8,6 +8,8 @@ import { DashboardLayout } from "./app/dashboard/layout";
 import Dashboard from "./app/dashboard";
 import { Placeholder } from "@/components/feedback/Placeholder";
 import Vehicles from "./app/vehicles";
+import Stops from "./app/stops";
+import NewStop from "./app/stops/pages/NewStop";
 
 // ── Root ──────────────────────────────────────────────────────
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
@@ -41,7 +43,13 @@ const routesRoute = createRoute({
 const stopsRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/stops",
-  component: () => <Placeholder name="Stops" />,
+  component: Stops,
+});
+
+const newStopRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/stops/new",
+  component: NewStop,
 });
 
 const parksRoute = createRoute({
@@ -64,6 +72,7 @@ const routeTree = rootRoute.addChildren([
     routesRoute,
     stopsRoute,
     parksRoute,
+    newStopRoute,
     trackingRoute,
   ]),
 ]);

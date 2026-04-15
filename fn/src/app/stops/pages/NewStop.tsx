@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
+import L from "leaflet";
 import MapView from "@/components/map/MapView";
 import type { DrawnShape } from "@/components/map/DrawControl";
-import L from "leaflet";
+import { useCreateStop } from "../api/stops.mutations";
+import type { CreateStopPayload } from "../api/stops.types";
 import "./NewStop.css";
 
 interface StopDraft {
   name: string;
   shapes: DrawnShape[];
-}
-
-interface StopPayload {
-  name: string;
-  coordinates: number[][];
 }
 
 const SHAPE_ICONS: Record<DrawnShape["type"], string> = {
@@ -24,58 +21,37 @@ const SHAPE_LABELS: Record<DrawnShape["type"], string> = {
   polyline: "Polyline route",
 };
 
-/**
- * Converts all drawn shapes into a flat list of [lat, lng] pairs.
- * Polygons: takes the outer ring only (index 0).
- * Polylines: takes the flat latlngs array.
- */
-function buildPayload(name: string, shapes: DrawnShape[]): StopPayload {
+function shapesToCoordinates(shapes: DrawnShape[]): number[][] {
   const coordinates: number[][] = [];
 
   for (const shape of shapes) {
     if (shape.type === "polygon") {
       const outerRing = (shape.latlngs as unknown as L.LatLng[][])[0] ?? [];
-      for (const ll of outerRing) {
-        coordinates.push([ll.lat, ll.lng]);
-      }
+      for (const ll of outerRing) coordinates.push([ll.lat, ll.lng]);
     } else {
-      const pts = shape.latlngs as L.LatLng[];
-      for (const ll of pts) {
-        coordinates.push([ll.lat, ll.lng]);
-      }
+      for (const ll of shape.latlngs as L.LatLng[]) coordinates.push([ll.lat, ll.lng]);
     }
   }
 
-  return { name, coordinates };
+  return coordinates;
+}
+
+function buildCreatePayload(draft: StopDraft): CreateStopPayload {
+  return {
+    name: draft.name.trim(),
+    coordinates: shapesToCoordinates(draft.shapes),
+  };
 }
 
 function NewStop() {
-  const [draft, setDraft] = useState<StopDraft>({
-    name: "",
-    shapes: [],
-  });
-
-  const [savedPayload, setSavedPayload] = useState<StopPayload | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [draft, setDraft] = useState<StopDraft>({ name: "", shapes: [] });
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const createStop = useCreateStop();
 
   useEffect(() => {
     if (draft.shapes.length === 0) return;
-
-    const logPayload = {
-      stopName: draft.name || "(unnamed)",
-      shapeCount: draft.shapes.length,
-      shapes: draft.shapes.map((s) => ({
-        id: s.id,
-        type: s.type,
-        vertexCount: s.vertexCount,
-        coordinates: s.latlngs,
-      })),
-    };
-
-    console.group(
-      `[NewStop] Drawn shapes updated — ${draft.shapes.length} shape(s)`,
-    );
     console.table(
       draft.shapes.map((s) => ({
         id: s.id.slice(0, 8) + "…",
@@ -83,27 +59,17 @@ function NewStop() {
         vertices: s.vertexCount,
       })),
     );
-    console.log("Full payload:", logPayload);
-    console.groupEnd();
-
-    sessionStorage.setItem("newStop_draft_shapes", JSON.stringify(logPayload));
-  }, [draft.shapes, draft.name]);
+  }, [draft.shapes]);
 
   const handleShapesChange = useCallback((shapes: DrawnShape[]) => {
     setDraft((prev) => ({ ...prev, shapes }));
   }, []);
 
-
-  const polygonCount = draft.shapes.filter((s) => s.type === "polygon").length;
-  const polylineCount = draft.shapes.filter(
-    (s) => s.type === "polyline",
-  ).length;
-
   const handleSave = useCallback(() => {
     setValidationError(null);
 
     if (!draft.name.trim()) {
-      setValidationError("Stop name is required before saving.");
+      setValidationError("Stop name is required.");
       return;
     }
     if (draft.shapes.length === 0) {
@@ -111,25 +77,21 @@ function NewStop() {
       return;
     }
 
-    const payload = buildPayload(draft.name.trim(), draft.shapes);
-    setSavedPayload(payload);
+    createStop.mutate(buildCreatePayload(draft));
+  }, [draft, createStop]);
 
-    console.group("[NewStop] ✅ Stop saved — payload ready for backend");
-    console.log(JSON.stringify(payload, null, 2));
-    console.groupEnd();
-
-    sessionStorage.setItem("newStop_payload", JSON.stringify(payload));
-  }, [draft.name, draft.shapes]);
-
-  const handleCopy = useCallback(() => {
-    if (!savedPayload) return;
+  const handleCopyPayload = useCallback(() => {
+    if (!createStop.data) return;
     navigator.clipboard
-      .writeText(JSON.stringify(savedPayload, null, 2))
+      .writeText(JSON.stringify(createStop.data, null, 2))
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
-  }, [savedPayload]);
+  }, [createStop.data]);
+
+  const polygonCount = draft.shapes.filter((s) => s.type === "polygon").length;
+  const polylineCount = draft.shapes.filter((s) => s.type === "polyline").length;
 
   return (
     <div className="ns-page">
@@ -173,9 +135,7 @@ function NewStop() {
           <MapView onShapesChange={handleShapesChange} />
         </div>
 
-        {/* Side panel */}
         <aside className="ns-panel">
-          {/* Stop details */}
           <section className="ns-section">
             <h2 className="ns-section__title">Stop Details</h2>
 
@@ -198,7 +158,6 @@ function NewStop() {
 
           <div className="ns-divider" />
 
-          {/* Drawn shapes */}
           <section className="ns-section ns-section--grow">
             <h2 className="ns-section__title">
               Drawn Shapes
@@ -238,39 +197,45 @@ function NewStop() {
 
           <div className="ns-divider" />
 
-          {/* Save footer */}
           <div className="ns-footer">
             {validationError && (
               <p className="ns-validation-error">{validationError}</p>
+            )}
+            {createStop.isError && (
+              <p className="ns-validation-error">
+                {createStop.error instanceof Error
+                  ? createStop.error.message
+                  : "Failed to save stop. Please try again."}
+              </p>
             )}
             <button
               id="save-stop-btn"
               className="ns-save-btn"
               onClick={handleSave}
+              disabled={createStop.isPending}
             >
-              Save Stop
+              {createStop.isPending ? "Saving…" : "Save Stop"}
             </button>
           </div>
 
-          {/* Payload preview */}
-          {savedPayload && (
+          {createStop.isSuccess && createStop.data && (
             <>
               <div className="ns-divider" />
               <section className="ns-section">
                 <h2 className="ns-section__title">
-                  Payload
+                  Saved
                   <span className="ns-section__badge ns-section__badge--green">
-                    Ready
+                    ✓
                   </span>
                 </h2>
                 <div className="ns-payload-wrap">
                   <pre className="ns-payload-code">
-                    {JSON.stringify(savedPayload, null, 2)}
+                    {JSON.stringify(createStop.data, null, 2)}
                   </pre>
                   <button
                     className={`ns-copy-btn${copied ? " ns-copy-btn--done" : ""}`}
-                    onClick={handleCopy}
-                    aria-label="Copy JSON payload"
+                    onClick={handleCopyPayload}
+                    aria-label="Copy JSON response"
                   >
                     {copied ? "✓ Copied" : "Copy JSON"}
                   </button>

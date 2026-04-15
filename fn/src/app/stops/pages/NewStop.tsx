@@ -23,16 +23,15 @@ const SHAPE_LABELS: Record<DrawnShape["type"], string> = {
 
 function shapesToCoordinates(shapes: DrawnShape[]): number[][] {
   const coordinates: number[][] = [];
-
   for (const shape of shapes) {
     if (shape.type === "polygon") {
       const outerRing = (shape.latlngs as unknown as L.LatLng[][])[0] ?? [];
       for (const ll of outerRing) coordinates.push([ll.lat, ll.lng]);
     } else {
-      for (const ll of shape.latlngs as L.LatLng[]) coordinates.push([ll.lat, ll.lng]);
+      for (const ll of shape.latlngs as L.LatLng[])
+        coordinates.push([ll.lat, ll.lng]);
     }
   }
-
   return coordinates;
 }
 
@@ -80,7 +79,7 @@ function NewStop() {
     createStop.mutate(buildCreatePayload(draft));
   }, [draft, createStop]);
 
-  const handleCopyPayload = useCallback(() => {
+  const handleCopyResponse = useCallback(() => {
     if (!createStop.data) return;
     navigator.clipboard
       .writeText(JSON.stringify(createStop.data, null, 2))
@@ -138,7 +137,6 @@ function NewStop() {
         <aside className="ns-panel">
           <section className="ns-section">
             <h2 className="ns-section__title">Stop Details</h2>
-
             <div className="ns-field">
               <label className="ns-label" htmlFor="stop-name">
                 Stop name
@@ -201,13 +199,6 @@ function NewStop() {
             {validationError && (
               <p className="ns-validation-error">{validationError}</p>
             )}
-            {createStop.isError && (
-              <p className="ns-validation-error">
-                {createStop.error instanceof Error
-                  ? createStop.error.message
-                  : "Failed to save stop. Please try again."}
-              </p>
-            )}
             <button
               id="save-stop-btn"
               className="ns-save-btn"
@@ -234,8 +225,8 @@ function NewStop() {
                   </pre>
                   <button
                     className={`ns-copy-btn${copied ? " ns-copy-btn--done" : ""}`}
-                    onClick={handleCopyPayload}
-                    aria-label="Copy JSON response"
+                    onClick={handleCopyResponse}
+                    aria-label="Copy server response JSON"
                   >
                     {copied ? "✓ Copied" : "Copy JSON"}
                   </button>

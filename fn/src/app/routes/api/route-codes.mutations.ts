@@ -13,7 +13,7 @@ export const useCreateRouteCode = () => {
       queryClient.invalidateQueries({ queryKey: routeCodeKeys.lists() });
       toast.success("Route code created successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to create route code");
     },
   });
@@ -29,7 +29,7 @@ export const useUpdateRouteCode = (id: string) => {
       queryClient.invalidateQueries({ queryKey: routeCodeKeys.detail(id) });
       toast.success("Route code updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to update route code");
     },
   });
@@ -44,7 +44,7 @@ export const useDeleteRouteCode = () => {
       queryClient.invalidateQueries({ queryKey: routeCodeKeys.lists() });
       toast.success("Route code deleted successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to delete route code");
     },
   });

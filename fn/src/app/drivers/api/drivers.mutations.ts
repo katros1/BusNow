@@ -13,7 +13,7 @@ export const useCreateDriver = () => {
       queryClient.invalidateQueries({ queryKey: driverKeys.lists() });
       toast.success("Driver registered successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to register driver");
     },
   });
@@ -29,7 +29,7 @@ export const useUpdateDriver = (id: string) => {
       queryClient.invalidateQueries({ queryKey: driverKeys.detail(id) });
       toast.success("Driver details updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to update driver details");
     },
   });
@@ -44,7 +44,7 @@ export const useDeleteDriver = () => {
       queryClient.invalidateQueries({ queryKey: driverKeys.lists() });
       toast.success("Driver record deleted successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to delete driver record");
     },
   });

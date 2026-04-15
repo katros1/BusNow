@@ -13,7 +13,7 @@ export const useCreateBus = () => {
       queryClient.invalidateQueries({ queryKey: busKeys.lists() });
       toast.success("Bus registered successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to register bus");
     },
   });
@@ -29,7 +29,7 @@ export const useUpdateBus = (id: string) => {
       queryClient.invalidateQueries({ queryKey: busKeys.detail(id) });
       toast.success("Bus details updated successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to update bus details");
     },
   });
@@ -44,7 +44,7 @@ export const useDeleteBus = () => {
       queryClient.invalidateQueries({ queryKey: busKeys.lists() });
       toast.success("Bus record deleted successfully");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error?.message || "Failed to delete bus record");
     },
   });

@@ -35,7 +35,7 @@ function StatCard({
 }: { 
   title: string; 
   value: number | string; 
-  icon: any; 
+  icon: import("react").ElementType; 
   isLoading: boolean;
   trend?: string;
   colorClass: string;

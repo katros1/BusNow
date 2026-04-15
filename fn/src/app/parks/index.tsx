@@ -1,8 +1,8 @@
 import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
-import { stopsApi } from "./api/stops.api"
-import { useDeleteStop } from "./api/stops.mutations"
-import { stopKeys } from "./api/stops.keys"
+import { parksApi } from "./api/parks.api"
+import { useDeletePark } from "./api/parks.mutations"
+import { parkKeys } from "./api/parks.keys"
 import { useNavigate } from "@tanstack/react-router"
 import {
   flexRender,
@@ -21,21 +21,21 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import type { Stop } from "./api/stops.types"
+import type { Park } from "./api/parks.types"
 
-export default function Stops() {
+export default function Parks() {
     const navigate = useNavigate()
-    const deleteStop = useDeleteStop()
+    const deletePark = useDeletePark()
 
-    const { data: stops = [], isLoading, isError, error } = useQuery({
-        queryKey: stopKeys.lists(),
-        queryFn: stopsApi.getAll,
+    const { data: parks = [], isLoading, isError, error } = useQuery({
+        queryKey: parkKeys.lists(),
+        queryFn: parksApi.getAll,
     })
 
-    const columns: ColumnDef<Stop>[] = [
+    const columns: ColumnDef<Park>[] = [
         {
             accessorKey: "name",
-            header: "Stop Name",
+            header: "Park Name",
             cell: ({ row }) => {
                 const name = row.getValue("name") as string
                 const id = row.original.id.slice(0, 8).toUpperCase()
@@ -103,7 +103,7 @@ export default function Stops() {
             id: "actions",
             header: () => <div className="text-right">Actions</div>,
             cell: ({ row }) => {
-                const stop = row.original
+                const park = row.original
 
                 return (
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -115,8 +115,8 @@ export default function Stops() {
                         <button 
                             className="p-2 hover:bg-error-container rounded-lg text-muted-foreground hover:text-error transition-colors cursor-pointer"
                             onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${stop.name}?`)) {
-                                    deleteStop.mutate(stop.id)
+                                if (confirm(`Are you sure you want to delete ${park.name}?`)) {
+                                    deletePark.mutate(park.id)
                                 }
                             }}
                         >
@@ -129,7 +129,7 @@ export default function Stops() {
     ]
 
     const table = useReactTable({
-        data: stops,
+        data: parks,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
@@ -146,15 +146,15 @@ export default function Stops() {
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                 <div>
                   <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1.5 block">Network Overview</span>
-                  <h1 className="text-[32px] font-bold tracking-tight text-foreground leading-none">Stops Management</h1>
+                  <h1 className="text-[32px] font-bold tracking-tight text-foreground leading-none">Parks Management</h1>
                 </div>
                 <div className="flex items-center space-x-3">
                     <button 
                         className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-lg font-medium text-[13px] shadow-sm transition-all outline-none cursor-pointer"
-                        onClick={() => navigate({ to: "/stops/new" })}
+                        onClick={() => navigate({ to: "/parks/new" })}
                     >
                         <PlusCircle className="h-[18px] w-[18px]" />
-                        <span>Add New Stop</span>
+                        <span>Add New Park</span>
                     </button>
                 </div>
             </div>
@@ -165,7 +165,7 @@ export default function Stops() {
                 {/* Tabs & Controls */}
                 <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-white">
                     <div className="flex items-center p-1 bg-surface-container-lowest border border-border rounded-lg">
-                        <button className="bg-primary text-primary-foreground shadow-sm px-3.5 py-1.5 rounded-md text-[11px] font-bold tracking-wide cursor-default transition-all">ALL STOPS</button>
+                        <button className="bg-primary text-primary-foreground shadow-sm px-3.5 py-1.5 rounded-md text-[11px] font-bold tracking-wide cursor-default transition-all">ALL PARKS</button>
                         <button className="text-muted-foreground hover:text-primary px-4 py-1.5 rounded-md text-[11px] font-semibold tracking-wide cursor-pointer transition-colors">INACTIVE</button>
                     </div>
                     <button className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-container-lowest hover:border-primary/30 transition-colors text-[12px] font-semibold text-primary cursor-pointer">
@@ -203,14 +203,14 @@ export default function Stops() {
                                     <TableCell colSpan={columns.length} className="h-32 text-center text-[13px] text-muted-foreground">
                                         <div className="flex flex-col items-center justify-center gap-3">
                                             <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                                            Loading stop infrastructure...
+                                            Loading park infrastructure...
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : isError ? (
                                 <TableRow className="hover:bg-white border-transparent">
                                     <TableCell colSpan={columns.length} className="h-32 text-center text-[13px] text-error font-medium">
-                                        Error loading stops. {(error as Error)?.message}
+                                        Error loading parks. {(error as Error)?.message}
                                     </TableCell>
                                 </TableRow>
                             ) : table.getRowModel().rows?.length ? (
@@ -232,8 +232,8 @@ export default function Stops() {
                                     <TableCell colSpan={columns.length} className="h-40 text-center text-muted-foreground">
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <MapPin className="h-8 w-8 text-primary/20 mb-1" />
-                                            <p className="text-[13px] font-medium text-foreground">No stops defined</p>
-                                            <p className="text-[12px]">Tap "Add New Stop" to map your first transit zone.</p>
+                                            <p className="text-[13px] font-medium text-foreground">No parks defined</p>
+                                            <p className="text-[12px]">Tap "Add New Park" to map your first transit zone.</p>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -245,7 +245,7 @@ export default function Stops() {
                 {/* Minimal Pagination */}
                 <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
                     <p className="text-[12px] text-muted-foreground font-medium">
-                        Showing <span className="font-semibold text-primary">{stops.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> to <span className="font-semibold text-primary">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, stops.length)}</span> of <span className="font-semibold text-primary">{stops.length}</span>
+                        Showing <span className="font-semibold text-primary">{parks.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> to <span className="font-semibold text-primary">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, parks.length)}</span> of <span className="font-semibold text-primary">{parks.length}</span>
                     </p>
                     <div className="flex gap-1.5">
                         <button 

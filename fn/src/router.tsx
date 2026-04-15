@@ -10,6 +10,8 @@ import { Placeholder } from "@/components/feedback/Placeholder";
 import Vehicles from "./app/vehicles";
 import Stops from "./app/stops";
 import NewStop from "./app/stops/pages/NewStop";
+import Parks from "./app/parks";
+import NewPark from "./app/parks/pages/NewPark";
 
 // ── Root ──────────────────────────────────────────────────────
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
@@ -55,7 +57,13 @@ const newStopRoute = createRoute({
 const parksRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/parks",
-  component: () => <Placeholder name="Parks" />,
+  component: Parks,
+});
+
+const newParkRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/parks/new",
+  component: NewPark,
 });
 
 const trackingRoute = createRoute({
@@ -73,6 +81,7 @@ const routeTree = rootRoute.addChildren([
     stopsRoute,
     parksRoute,
     newStopRoute,
+    newParkRoute,
     trackingRoute,
   ]),
 ]);

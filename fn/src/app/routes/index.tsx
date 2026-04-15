@@ -24,6 +24,8 @@ import {
 
 import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal"
 import { ManageRouteStopsModal } from "./components/ManageRouteStopsModal"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { RouteCodesTab } from "./components/RouteCodesTab"
 
 import type { Route } from "./api/routes.types"
 
@@ -174,8 +176,17 @@ export default function Routes() {
                 </div>
             </div>
 
-            {/* Main Data Container */}
-            <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+            <Tabs defaultValue="routes" className="w-full">
+              <div className="flex items-center mb-6">
+                <TabsList className="bg-surface-container-low h-10 border border-border rounded-lg p-1 space-x-1 shadow-sm">
+                  <TabsTrigger value="routes" className="text-[13px] px-6 h-8 rounded-md font-semibold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Physical Trajectories</TabsTrigger>
+                  <TabsTrigger value="codes" className="text-[13px] px-6 h-8 rounded-md font-semibold data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Route Codes</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="routes" className="outline-none m-0">
+                {/* Main Data Container */}
+                <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
                 
                 {/* Tabs & Controls */}
                 <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-white">
@@ -294,8 +305,13 @@ export default function Routes() {
                     </div>
                 </div>
             </div>
+          </TabsContent>
+          <TabsContent value="codes" className="outline-none m-0">
+             <RouteCodesTab />
+          </TabsContent>
+        </Tabs>
 
-            <ConfirmDeleteModal 
+        <ConfirmDeleteModal 
                 isOpen={!!deleteRoute}
                 onClose={() => setDeleteRoute(null)}
                 onConfirm={() => deleteRoute && deleteRouteMut.mutate(deleteRoute.id)}

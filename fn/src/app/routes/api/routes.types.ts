@@ -1,9 +1,23 @@
-export interface Route {
+export interface RouteStop {
+  id: string;
+  name?: string;
+  sequence: number;
+  coordinates: number[][];
+}
+
+export interface RouteBusPark {
   id: string;
   name: string;
   coordinates: number[][];
-  startBusParkId: string;
-  endBusParkId: string;
+}
+
+export interface Route {
+  id: string;
+  name: string;
+  routePath: number[][];
+  startBusPark: RouteBusPark;
+  endBusPark: RouteBusPark;
+  stops?: RouteStop[];
   createdAt: string;
   updatedAt: string;
 }

@@ -10,6 +10,7 @@ import { parksApi } from "../../parks/api/parks.api";
 import { parkKeys } from "../../parks/api/parks.keys";
 
 import { TerminalSelect } from "@/components/ui/TerminalSelect";
+import type { RouteBusPark } from "../api/routes.types";
 
 type CoordinateObj = { lat: number; lng: number }; 
 
@@ -26,6 +27,8 @@ export default function NewRoute() {
   const [startBusParkId, setStartBusParkId] = useState("");
   const [endBusParkId, setEndBusParkId] = useState("");
   const [shapes, setShapes] = useState<DrawnShape[]>([]);
+
+  const selectedParks = parks.filter(p => p.id === startBusParkId || p.id === endBusParkId);
 
   const createRouteMut = useCreateRoute();
 
@@ -151,10 +154,11 @@ export default function NewRoute() {
           </div>
         </div>
 
-        {/* Right Pane - Map */}
         <div className="flex-1 relative z-0 bg-[#e5e3df] min-h-[400px]">
           <MapView
             onShapesChange={setShapes}
+            initialShapeType="polyline"
+            parks={selectedParks as unknown as RouteBusPark[]}
           />
         </div>
       </div>

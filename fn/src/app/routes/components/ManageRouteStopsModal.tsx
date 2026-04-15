@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Search, CheckSquare, Square, Save } from "lucide-react";
 import { stopsApi } from "../../stops/api/stops.api";
@@ -14,8 +14,8 @@ interface ManageRouteStopsModalProps {
 export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalProps) {
   const [query, setQuery] = useState("");
   const [selectedStops, setSelectedStops] = useState<Set<string>>(() => {
-    if (route && (route as any).stopIds) {
-      return new Set((route as any).stopIds);
+    if (route && route.stops) {
+      return new Set(route.stops.map(s => s.id));
     }
     return new Set();
   });

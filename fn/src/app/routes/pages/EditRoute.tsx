@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, ChevronLeft, Route as RouteIcon } from "lucide-react";
+import { MapPin, ChevronLeft, Route as RouteIcon, MapPinOff } from "lucide-react";
 
 import { routesApi } from "../api/routes.api";
 import { routeKeys } from "../api/routes.keys";
@@ -13,6 +13,7 @@ import { parkKeys } from "../../parks/api/parks.keys";
 import MapView from "@/components/map/MapView";
 import type { DrawnShape } from "@/components/map/DrawControl";
 import { TerminalSelect } from "@/components/ui/TerminalSelect";
+import { ManageRouteStopsModal } from "../components/ManageRouteStopsModal";
 import type { Route } from "../api/routes.types";
 
 type CoordinateObj = { lat: number; lng: number }; 
@@ -55,14 +56,15 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
   });
 
   const [editName, setEditName] = useState(route.name);
-  const [editStartBusParkId, setEditStartBusParkId] = useState(route.startBusParkId);
-  const [editEndBusParkId, setEditEndBusParkId] = useState(route.endBusParkId);
+  const [editStartBusParkId, setEditStartBusParkId] = useState(route.startBusPark?.id);
+  const [editEndBusParkId, setEditEndBusParkId] = useState(route.endBusPark?.id);
   const [editShapes, setEditShapes] = useState<DrawnShape[]>([]);
+  const [isStopsModalOpen, setIsStopsModalOpen] = useState(false);
 
   const updateRouteMut = useUpdateRoute(routeId);
 
   const handleSave = () => {
-    let coords = route.coordinates;
+    let coords = route.routePath;
     if (editShapes.length > 0 && editShapes[editShapes.length - 1].type === "polyline") {
       // Leaflet polylines return a flat array of LatLng objects, unlike polygons which return nested rings.
       const mapLatLngs = editShapes[editShapes.length - 1].latlngs as unknown as CoordinateObj[];
@@ -162,6 +164,37 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
 
           <div>
             <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+              Passenger Stops
+            </label>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                {route.stops && route.stops.length > 0 ? (
+                  route.stops.map(stop => (
+                    <span 
+                      key={stop.id} 
+                      className="text-[12px] font-medium bg-amber-500/10 text-amber-600 px-2.5 py-1.5 rounded-md border border-amber-500/20 flex items-center gap-1.5"
+                    >
+                      <span className="font-bold">{stop.sequence}.</span> {stop.name || 'Unnamed'}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[13px] text-muted-foreground flex items-center gap-1.5 bg-surface-container-lowest p-2 rounded-lg border border-border">
+                    <MapPinOff className="h-4 w-4" />
+                    No stops mapped on route.
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setIsStopsModalOpen(true)}
+                className="h-10 bg-white border border-border rounded-lg text-[13px] font-semibold text-foreground hover:bg-surface-container-low transition-colors w-full shadow-sm"
+              >
+                Manage Route Stops
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
               Trajectory Mapping
             </label>
             <div className="p-5 rounded-lg bg-primary/5 border border-primary/20">
@@ -170,7 +203,7 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
                 <span className="font-bold text-[14px] text-primary">
                   {editShapes.length > 0
                     ? editShapes.reduce((acc, curr) => acc + curr.vertexCount, 0)
-                    : route.coordinates?.length || 0}{" "}
+                    : route.routePath?.length || 0}{" "}
                   Waypoints plotted
                 </span>
               </div>
@@ -181,14 +214,23 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
           </div>
         </div>
 
-        {/* Right Pane - Map */}
         <div className="flex-1 relative z-0 bg-[#e5e3df] min-h-[400px]">
           <MapView
             onShapesChange={setEditShapes}
-            initialCoordinates={route.coordinates as [number, number][]}
+            initialCoordinates={route.routePath as [number, number][]}
+            initialShapeType="polyline"
+            parks={[route.startBusPark, route.endBusPark].filter(Boolean)}
+            stops={route.stops}
           />
         </div>
       </div>
+
+      {isStopsModalOpen && (
+        <ManageRouteStopsModal
+          route={route}
+          onClose={() => setIsStopsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

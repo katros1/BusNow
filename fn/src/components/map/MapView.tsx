@@ -2,8 +2,9 @@ import "leaflet/dist/leaflet.css";
 import "./map.css";
 
 import L from "leaflet";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, Polygon, Tooltip } from "react-leaflet";
 import { useEffect } from "react";
+import type { RouteBusPark, RouteStop } from "../../app/routes/api/routes.types";
 import SearchControl from "./SearchControl";
 import DrawControl, { type DrawnShape } from "./DrawControl";
 
@@ -32,9 +33,12 @@ export interface MapViewProps {
   /** Fires whenever shapes are drawn, edited, or deleted. */
   onShapesChange?: (shapes: DrawnShape[]) => void;
   initialCoordinates?: [number, number][];
+  initialShapeType?: "polygon" | "polyline";
+  parks?: RouteBusPark[];
+  stops?: RouteStop[];
 }
 
-function MapView({ onShapesChange, initialCoordinates }: MapViewProps) {
+function MapView({ onShapesChange, initialCoordinates, initialShapeType, parks, stops }: MapViewProps) {
   return (
     <MapContainer
       center={RWANDA_CENTER}
@@ -62,8 +66,33 @@ function MapView({ onShapesChange, initialCoordinates }: MapViewProps) {
       {/* Rwanda-only place search */}
       <SearchControl />
 
+      {/* Map Stops and Parks */}
+      {parks?.map((park) => (
+        <Polygon 
+          key={park.id} 
+          positions={park.coordinates as [number, number][]} 
+          pathOptions={{ color: "#3b82f6", weight: 2, fillColor: "#3b82f6", fillOpacity: 0.2 }}
+        >
+          <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+            Terminal: {park.name}
+          </Tooltip>
+        </Polygon>
+      ))}
+
+      {stops?.map((stop) => (
+        <Polygon 
+          key={stop.id} 
+          positions={stop.coordinates as [number, number][]} 
+          pathOptions={{ color: "#eab308", weight: 2, fillColor: "#eab308", fillOpacity: 0.4 }}
+        >
+          <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+            Stop {stop.sequence}: {stop.name || 'Unnamed'}
+          </Tooltip>
+        </Polygon>
+      ))}
+
       {/* Polygon + polyline draw toolbar */}
-      <DrawControl onChange={onShapesChange} initialCoordinates={initialCoordinates} />
+      <DrawControl onChange={onShapesChange} initialCoordinates={initialCoordinates} initialShapeType={initialShapeType} />
     </MapContainer>
   );
 }

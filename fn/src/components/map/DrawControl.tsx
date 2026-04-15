@@ -16,6 +16,7 @@ export interface DrawnShape {
 interface DrawControlProps {
   onChange?: (shapes: DrawnShape[]) => void;
   initialCoordinates?: [number, number][];
+  initialShapeType?: "polygon" | "polyline";
 }
 
 function uid(): string {
@@ -53,7 +54,7 @@ function layerToShape(id: string, layer: L.Layer): DrawnShape | null {
   return null;
 }
 
-function DrawControl({ onChange, initialCoordinates }: DrawControlProps) {
+function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon" }: DrawControlProps) {
   const map = useMap();
   const drawnItemsRef = useRef<L.FeatureGroup>(new L.FeatureGroup());
   const shapeMapRef = useRef<Map<L.Layer, DrawnShape>>(new Map());
@@ -66,19 +67,26 @@ function DrawControl({ onChange, initialCoordinates }: DrawControlProps) {
     shapeMap.clear();
 
     if (initialCoordinates && initialCoordinates.length > 0) {
-      const polygon = L.polygon(initialCoordinates, {
-        color: "#005BBF",
-        weight: 2,
-        opacity: 1,
-        fillColor: "#1a73e8",
-        fillOpacity: 0.12,
-      });
-      drawnItems.addLayer(polygon);
-      shapeMap.set(polygon, layerToShape(uid(), polygon)!);
+      const shape = initialShapeType === "polygon" 
+        ? L.polygon(initialCoordinates, {
+            color: "#005BBF",
+            weight: 2,
+            opacity: 1,
+            fillColor: "#1a73e8",
+            fillOpacity: 0.12,
+          })
+        : L.polyline(initialCoordinates, {
+            color: "#795900",
+            weight: 3,
+            opacity: 0.85,
+            dashArray: "6 4",
+          });
+      drawnItems.addLayer(shape);
+      shapeMap.set(shape, layerToShape(uid(), shape)!);
       
       requestAnimationFrame(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        try { map.fitBounds(polygon.getBounds(), { padding: [20, 20], maxZoom: 16 }); } catch (_e) { /* default to view */ }
+        try { map.fitBounds(shape.getBounds(), { padding: [20, 20], maxZoom: 16 }); } catch (_e) { /* default to view */ }
       });
     }
 
@@ -176,7 +184,7 @@ function DrawControl({ onChange, initialCoordinates }: DrawControlProps) {
       map.off(L.Draw.Event.EDITED);
       map.off(L.Draw.Event.DELETED);
     };
-  }, [map, onChange]);
+  }, [map, onChange, initialCoordinates, initialShapeType]);
 
   return null;
 }

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal, } from "lucide-react"
+import { PlusCircle, Edit, Trash, MapPin, ChevronLeft, ChevronRight, SlidersHorizontal, ListPlus } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { routesApi } from "./api/routes.api"
 import { useDeleteRoute, } from "./api/routes.mutations"
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 
 import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal"
+import { ManageRouteStopsModal } from "./components/ManageRouteStopsModal"
 
 import type { Route } from "./api/routes.types"
 
@@ -30,6 +31,7 @@ export default function Routes() {
     const navigate = useNavigate()
     
     const [deleteRoute, setDeleteRoute] = useState<Route | null>(null);
+    const [manageStopsRoute, setManageStopsRoute] = useState<Route | null>(null);
 
     const deleteRouteMut = useDeleteRoute()
 
@@ -114,7 +116,15 @@ export default function Routes() {
                 return (
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
+                            className="p-2 hover:bg-emerald-100 rounded-lg text-muted-foreground hover:text-emerald-600 transition-colors cursor-pointer"
+                            title="Manage Stops"
+                            onClick={() => setManageStopsRoute(route)}
+                        >
+                            <ListPlus className="h-[15px] w-[15px]" />
+                        </button>
+                        <button 
                             className="p-2 hover:bg-primary/10 rounded-lg text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                            title="Edit Route Boundaries"
                             onClick={() => {
                                 navigate({ to: "/routes/$routeId/edit", params: { routeId: route.id } });
                             }}
@@ -285,7 +295,6 @@ export default function Routes() {
                 </div>
             </div>
 
-            {/* DELETE MODAL */}
             <ConfirmDeleteModal 
                 isOpen={!!deleteRoute}
                 onClose={() => setDeleteRoute(null)}
@@ -293,6 +302,14 @@ export default function Routes() {
                 entityName={deleteRoute?.name}
                 entityType="Route"
             />
+
+            {/* MANAGE STOPS MODAL */}
+            {manageStopsRoute && (
+                <ManageRouteStopsModal
+                     route={manageStopsRoute}
+                     onClose={() => setManageStopsRoute(null)}
+                />
+            )}
         </div>
     )
 }

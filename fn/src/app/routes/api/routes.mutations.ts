@@ -60,3 +60,23 @@ export function useDeleteRoute() {
     },
   });
 }
+
+export function useUpdateRouteStops(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { stopIds: string[] }) => routesApi.updateStops(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: routeKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: routeKeys.lists() });
+      toast.success('Route stops updated', {
+        description: 'Stops were successfully attached to the route.',
+      });
+    },
+    onError: (error: unknown) => {
+      toast.error('Failed to update route stops', {
+        description:
+          error instanceof Error ? error.message : 'Unexpected error occurred.',
+      });
+    },
+  });
+}

@@ -5,7 +5,7 @@
 
 /* ============================================================
    Urban Transit Tracker — Design System
-   Source: Stitch "Urban Kinetic"
+   Source: Stitch "iots"
    Primary:   Urban Blue   #005BBF / #1A73E8
    Secondary: Safety Amber #795900 / #FEBF0D
    Neutral:   Surface Grey #F8F9FA
@@ -113,7 +113,7 @@
   /* ROUND_FOUR → 4px base radius */
   --radius: 0.25rem;
 
-  /* ── Core ShadCN tokens mapped to Urban Kinetic palette ── */
+  /* ── Core ShadCN tokens mapped to iots palette ── */
   /* Primary: Urban Blue */
   --primary:            #005BBF;
   --primary-foreground: #ffffff;

@@ -36,10 +36,26 @@ const vehiclesRoute = createRoute({
   component: Vehicles,
 });
 
+import RoutesModule from "./app/routes";
+import NewRoute from "./app/routes/pages/NewRoute";
+import EditRoute from "./app/routes/pages/EditRoute";
+
 const routesRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/routes",
-  component: () => <Placeholder name="Routes" />,
+  component: RoutesModule,
+});
+
+const newRouteRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/routes/new",
+  component: NewRoute,
+});
+
+const editRouteRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/routes/$routeId/edit",
+  component: EditRoute,
 });
 
 import EditStop from "./app/stops/pages/EditStop";
@@ -93,6 +109,8 @@ const routeTree = rootRoute.addChildren([
     dashboardRoute,
     vehiclesRoute,
     routesRoute,
+    newRouteRoute,
+    editRouteRoute,
     stopsRoute,
     newStopRoute,
     editStopRoute,

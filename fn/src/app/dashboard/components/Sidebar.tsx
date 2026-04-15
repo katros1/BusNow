@@ -4,6 +4,7 @@ import {
   MapPin,
   ParkingCircle,
   Bus,
+  UserRound,
   Route,
   RadioTower,
   HelpCircle,
@@ -31,7 +32,8 @@ const NAV_GROUPS = [
   {
     label: "Management",
     items: [
-      { to: "/vehicles", label: "Vehicles",  icon: Bus,          badge: null },
+      { to: "/buses",    label: "Buses",     icon: Bus,          badge: null },
+      { to: "/drivers",  label: "Drivers",   icon: UserRound,    badge: null },
       { to: "/routes",   label: "Routes",    icon: Route,        badge: null },
       { to: "/stops",    label: "Stops",     icon: MapPin,       badge: null },
       { to: "/parks",    label: "Parks",     icon: ParkingCircle,badge: null },

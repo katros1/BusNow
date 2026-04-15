@@ -7,7 +7,8 @@ import {
 import { DashboardLayout } from "./app/dashboard/layout";
 import Dashboard from "./app/dashboard";
 import { Placeholder } from "@/components/feedback/Placeholder";
-import Vehicles from "./app/vehicles";
+import Drivers from "./app/drivers";
+import Buses from "./app/buses";
 import Stops from "./app/stops";
 import NewStop from "./app/stops/pages/NewStop";
 import Parks from "./app/parks";
@@ -30,10 +31,16 @@ const dashboardRoute = createRoute({
   component: Dashboard,
 });
 
-const vehiclesRoute = createRoute({
+const driversRoute = createRoute({
   getParentRoute: () => layoutRoute,
-  path: "/vehicles",
-  component: Vehicles,
+  path: "/drivers",
+  component: Drivers,
+});
+
+const busesRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/buses",
+  component: Buses,
 });
 
 import RoutesModule from "./app/routes";
@@ -107,7 +114,8 @@ const trackingRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   layoutRoute.addChildren([
     dashboardRoute,
-    vehiclesRoute,
+    driversRoute,
+    busesRoute,
     routesRoute,
     newRouteRoute,
     editRouteRoute,

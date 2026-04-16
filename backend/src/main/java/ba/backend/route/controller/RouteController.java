@@ -3,6 +3,7 @@ package ba.backend.route.controller;
 import ba.backend.route.dto.RouteCreateDto;
 import ba.backend.route.dto.RouteDetailResponseDto;
 import ba.backend.route.dto.RouteResponseDto;
+import ba.backend.route.dto.RouteStopShapeDto;
 import ba.backend.route.dto.RouteStopsAssignmentDto;
 import ba.backend.route.dto.RouteUpdateDto;
 import ba.backend.route.service.RouteService;
@@ -50,6 +51,11 @@ public class RouteController {
     @GetMapping("/{id}")
     public RouteDetailResponseDto get(@PathVariable UUID id) {
         return routeService.get(id);
+    }
+
+    @GetMapping("/{id}/stops")
+    public List<RouteStopShapeDto> getStops(@PathVariable UUID id) {
+        return routeService.getStops(id);
     }
 
     @PutMapping("/{id}")

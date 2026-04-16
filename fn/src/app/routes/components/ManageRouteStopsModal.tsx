@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Search, CheckSquare, Square, Save } from "lucide-react";
 import { stopsApi } from "../../stops/api/stops.api";
 import { stopKeys } from "../../stops/api/stops.keys";
+import { routesApi } from "../api/routes.api";
+import { routeKeys } from "../api/routes.keys";
 import { useUpdateRouteStops } from "../api/routes.mutations";
 import type { Route } from "../api/routes.types";
 
@@ -13,12 +15,21 @@ interface ManageRouteStopsModalProps {
 
 export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalProps) {
   const [query, setQuery] = useState("");
-  const [selectedStops, setSelectedStops] = useState<Set<string>>(() => {
-    if (route && route.stops) {
-      return new Set(route.stops.map(s => s.id));
-    }
-    return new Set();
+  const [selectedStops, setSelectedStops] = useState<Set<string>>(new Set());
+  const initRef = useRef(false);
+
+  const { data: assignedStops, isLoading: isAssignedLoading } = useQuery({
+    queryKey: routeKeys.stops(route?.id ?? ""),
+    queryFn: () => routesApi.getRouteStops(route!.id),
+    enabled: !!route,
   });
+
+  useEffect(() => {
+    if (assignedStops && !initRef.current) {
+      setSelectedStops(new Set(assignedStops.map(s => s.id)));
+      initRef.current = true;
+    }
+  }, [assignedStops]);
 
   const { data: stops = [], isLoading } = useQuery({
     queryKey: stopKeys.lists(),
@@ -84,10 +95,10 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
         </div>
 
         <div className="max-h-[350px] overflow-y-auto p-2">
-          {isLoading ? (
+          {isLoading || isAssignedLoading ? (
             <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground">
               <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-              <span className="text-[13px]">Loading stops array...</span>
+              <span className="text-[13px]">Loading stops...</span>
             </div>
           ) : filteredStops.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-[13px]">

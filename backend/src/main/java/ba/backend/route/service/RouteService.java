@@ -70,6 +70,18 @@ public class RouteService {
         return toDetailDto(findRoute(id));
     }
 
+    @Transactional(readOnly = true)
+    public List<RouteStopShapeDto> getStops(UUID id) {
+        return findRoute(id).getRouteStops().stream()
+                .map(routeStop -> new RouteStopShapeDto(
+                        routeStop.getStop().getId(),
+                        routeStop.getStop().getName(),
+                        routeStop.getSequence(),
+                        polygonGeometryMapper.toCoordinates(routeStop.getStop().getGeo())
+                ))
+                .toList();
+    }
+
     @Transactional
     public RouteResponseDto update(UUID id, RouteCreateDto request) {
         RouteEntity route = findRoute(id);
@@ -129,7 +141,8 @@ public class RouteService {
 
         if (stopIds.isEmpty()) {
             route.getRouteStops().clear();
-            return toDto(routeRepository.save(route));
+            routeRepository.flush();
+            return toDto(route);
         }
 
         if (stopIds.stream().distinct().count() != stopIds.size()) {
@@ -147,6 +160,7 @@ public class RouteService {
         }
 
         route.getRouteStops().clear();
+        routeRepository.flush();
         int sequence = 1;
         for (UUID stopId : stopIds) {
             StopEntity stop = stopById.get(stopId);

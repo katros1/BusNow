@@ -12,6 +12,9 @@ import ba.backend.routecode.repository.RouteCodeRepository;
 import ba.backend.shared.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,8 +38,17 @@ public class RouteCodeService {
     }
 
     @Transactional(readOnly = true)
-    public List<RouteCodeResponseDto> list() {
-        return routeCodeRepository.findAll().stream().map(this::toDto).toList();
+    public Page<RouteCodeResponseDto> list(String search, Pageable pageable) {
+        Specification<RouteCodeEntity> specification = (root, query, criteriaBuilder) -> {
+            if (search == null || search.isBlank()) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("code")),
+                    "%" + search.trim().toLowerCase() + "%"
+            );
+        };
+        return routeCodeRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

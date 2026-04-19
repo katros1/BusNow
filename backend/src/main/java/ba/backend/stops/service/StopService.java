@@ -7,8 +7,10 @@ import ba.backend.shared.exception.ResourceNotFoundException;
 import ba.backend.shared.geo.PolygonGeometryMapper;
 import ba.backend.stops.entity.StopEntity;
 import ba.backend.stops.repository.StopRepository;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,10 +32,17 @@ public class StopService {
     }
 
     @Transactional(readOnly = true)
-    public List<PolygonResourceDto> list() {
-        return stopRepository.findAll().stream()
-                .map(this::toDto)
-                .toList();
+    public Page<PolygonResourceDto> list(String search, Pageable pageable) {
+        Specification<StopEntity> specification = (root, query, criteriaBuilder) -> {
+            if (search == null || search.isBlank()) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("name")),
+                    "%" + search.trim().toLowerCase() + "%"
+            );
+        };
+        return stopRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

@@ -12,8 +12,10 @@ import ba.backend.driver.repository.DriverRepository;
 import ba.backend.routecode.entity.RouteCodeEntity;
 import ba.backend.routecode.repository.RouteCodeRepository;
 import ba.backend.shared.exception.ResourceNotFoundException;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,8 +49,46 @@ public class BusService {
     }
 
     @Transactional(readOnly = true)
-    public List<BusResponseDto> list() {
-        return busRepository.findAll().stream().map(this::toDto).toList();
+    public Page<BusResponseDto> list(
+            String search,
+            UUID currentDriverId,
+            UUID routeCodeId,
+            Integer minCapacity,
+            Integer maxCapacity,
+            Pageable pageable
+    ) {
+        if (minCapacity != null && maxCapacity != null && minCapacity > maxCapacity) {
+            throw new IllegalArgumentException("minCapacity must be less than or equal to maxCapacity.");
+        }
+
+        Specification<BusEntity> specification = (root, query, criteriaBuilder) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            if (search != null && !search.isBlank()) {
+                String likeValue = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("plateNumber")), likeValue),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("gpsImei")), likeValue),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("model")), likeValue)
+                ));
+            }
+            if (currentDriverId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("currentDriver").get("id"), currentDriverId));
+            }
+            if (routeCodeId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("routeCode").get("id"), routeCodeId));
+            }
+            if (minCapacity != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("capacity"), minCapacity));
+            }
+            if (maxCapacity != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("capacity"), maxCapacity));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+
+        return busRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

@@ -3,11 +3,15 @@ package ba.backend.driver.service;
 import ba.backend.driver.dto.DriverCreateDto;
 import ba.backend.driver.dto.DriverResponseDto;
 import ba.backend.driver.dto.DriverUpdateDto;
+import ba.backend.driver.entity.DriverGender;
 import ba.backend.driver.entity.DriverEntity;
+import ba.backend.driver.entity.LicenseCategory;
 import ba.backend.driver.repository.DriverRepository;
 import ba.backend.shared.exception.ResourceNotFoundException;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,8 +38,28 @@ public class DriverService {
     }
 
     @Transactional(readOnly = true)
-    public List<DriverResponseDto> list() {
-        return driverRepository.findAll().stream().map(this::toDto).toList();
+    public Page<DriverResponseDto> list(String search, DriverGender gender, LicenseCategory licenseCategory, Pageable pageable) {
+        Specification<DriverEntity> specification = (root, query, criteriaBuilder) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            if (search != null && !search.isBlank()) {
+                String likeValue = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(criteriaBuilder.or(
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("firstName")), likeValue),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("lastName")), likeValue),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("phoneNumber")), likeValue),
+                        criteriaBuilder.like(criteriaBuilder.lower(root.get("licenseNumber")), likeValue)
+                ));
+            }
+            if (gender != null) {
+                predicates.add(criteriaBuilder.equal(root.get("gender"), gender));
+            }
+            if (licenseCategory != null) {
+                predicates.add(criteriaBuilder.equal(root.get("licenseCategory"), licenseCategory));
+            }
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        return driverRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

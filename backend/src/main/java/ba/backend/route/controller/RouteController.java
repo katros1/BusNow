@@ -2,6 +2,7 @@ package ba.backend.route.controller;
 
 import ba.backend.route.dto.RouteCreateDto;
 import ba.backend.route.dto.RouteDetailResponseDto;
+import ba.backend.shared.dto.PagedResponseDto;
 import ba.backend.route.dto.RouteResponseDto;
 import ba.backend.route.dto.RouteStopShapeDto;
 import ba.backend.route.dto.RouteStopsAssignmentDto;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -44,8 +47,13 @@ public class RouteController {
     }
 
     @GetMapping
-    public List<RouteResponseDto> list() {
-        return routeService.list();
+    public PagedResponseDto<RouteResponseDto> list(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID startBusParkId,
+            @RequestParam(required = false) UUID endBusParkId,
+            Pageable pageable
+    ) {
+        return PagedResponseDto.from(routeService.list(search, startBusParkId, endBusParkId, pageable));
     }
 
     @GetMapping("/{id}")

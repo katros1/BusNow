@@ -41,7 +41,7 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
 
   if (!route) return null;
 
-  const filteredStops = stops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
+  const filteredStops = stops?.content?.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
 
   const toggleStop = (stopId: string) => {
     setSelectedStops((prev) => {

@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,8 +64,25 @@ public class RouteService {
     }
 
     @Transactional(readOnly = true)
-    public List<RouteResponseDto> list() {
-        return routeRepository.findAll().stream().map(this::toDto).toList();
+    public Page<RouteResponseDto> list(String search, UUID startBusParkId, UUID endBusParkId, Pageable pageable) {
+        Specification<RouteEntity> specification = (root, query, criteriaBuilder) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+
+            if (search != null && !search.isBlank()) {
+                predicates.add(criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("name")),
+                        "%" + search.trim().toLowerCase() + "%"
+                ));
+            }
+            if (startBusParkId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("startBusPark").get("id"), startBusParkId));
+            }
+            if (endBusParkId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("endBusPark").get("id"), endBusParkId));
+            }
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        return routeRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

@@ -34,8 +34,8 @@ export function TerminalSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filtered = options.filter(opt => opt.name.toLowerCase().includes(query.toLowerCase()));
-  const selected = options.find(o => o.id === value);
+  const filtered = options?.content?.filter(opt => opt.name.toLowerCase().includes(query.toLowerCase()));
+  const selected = options?.content?.find(o => o.id === value);
 
   return (
     <div className="flex flex-col gap-2" ref={ref}>

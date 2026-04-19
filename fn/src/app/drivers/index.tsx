@@ -4,7 +4,6 @@ import { PlusCircle, Edit, Trash, UserRound } from "lucide-react";
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -33,10 +32,18 @@ export default function Drivers() {
 
   const deleteMut = useDeleteDriver();
 
-  const { data: drivers = [], isLoading, isError, error } = useQuery({
-    queryKey: driverKeys.lists(),
-    queryFn: driversApi.getAll,
+  const [search, setSearch] = useState("");
+  const [gender, setGender] = useState("");
+  const [licenseCategory, setLicenseCategory] = useState("");
+  const [{ pageIndex, pageSize }, setPagination] = useState({ pageIndex: 0, pageSize: 7 });
+
+  const { data: response, isLoading, isError, error } = useQuery({
+    queryKey: [...driverKeys.lists(), { search, gender, licenseCategory, pageIndex, pageSize }],
+    queryFn: () => driversApi.getAll({ search, gender, licenseCategory, page: pageIndex, size: pageSize }),
   });
+
+  const drivers = response?.content || [];
+  const totalPages = response?.totalPages || 0;
 
   const columns = useMemo<ColumnDef<Driver>[]>(
     () => [
@@ -110,11 +117,13 @@ export default function Drivers() {
   const table = useReactTable({
     data: drivers,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 7 },
+    pageCount: totalPages,
+    state: {
+      pagination: { pageIndex, pageSize }
     },
+    onPaginationChange: setPagination,
+    manualPagination: true,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   return (
@@ -139,6 +148,44 @@ export default function Drivers() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+        <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-3 bg-white">
+            <input 
+              type="text" 
+              placeholder="Search drivers..." 
+              value={search} 
+              onChange={e => {
+                  setSearch(e.target.value);
+                  setPagination(prev => ({ ...prev, pageIndex: 0 }));
+              }} 
+              className="w-full md:max-w-xs h-9 px-3 text-[13px] border border-border rounded-md focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+            />
+            <select 
+               value={gender} 
+               onChange={e => {
+                   setGender(e.target.value);
+                   setPagination(prev => ({ ...prev, pageIndex: 0 }));
+               }} 
+               className="h-9 px-3 text-[13px] border border-border rounded-md focus:border-primary outline-none transition-all cursor-pointer bg-white"
+            >
+                <option value="">All Genders</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+            </select>
+            <select 
+               value={licenseCategory} 
+               onChange={e => {
+                   setLicenseCategory(e.target.value);
+                   setPagination(prev => ({ ...prev, pageIndex: 0 }));
+               }} 
+               className="h-9 px-3 text-[13px] border border-border rounded-md focus:border-primary outline-none transition-all cursor-pointer bg-white"
+            >
+                <option value="">All Categories</option>
+                <option value="A">Cat A</option>
+                <option value="B">Cat B</option>
+                <option value="C">Cat C</option>
+                <option value="D">Cat D</option>
+            </select>
+        </div>
         <div className="overflow-x-auto bg-white">
           <Table>
             <TableHeader>
@@ -191,6 +238,27 @@ export default function Drivers() {
               )}
             </TableBody>
           </Table>
+        </div>
+        <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
+          <p className="text-[12px] text-muted-foreground font-medium">
+            Page <span className="font-semibold text-primary">{pageIndex + 1}</span> of <span className="font-semibold text-primary">{totalPages || 1}</span>
+          </p>
+          <div className="flex gap-1.5">
+            <button 
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            >
+                &lt;
+            </button>
+            <button 
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            >
+                &gt;
+            </button>
+          </div>
         </div>
       </div>
 

@@ -119,7 +119,7 @@ export function BusModal({ bus, onClose }: BusModalProps) {
                 className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
               >
                 <option value="" disabled>Select active driver...</option>
-                {drivers.map(d => (
+                {drivers?.content?.map(d => (
                   <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
                 ))}
               </select>
@@ -133,7 +133,7 @@ export function BusModal({ bus, onClose }: BusModalProps) {
                 className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
               >
                 <option value="" disabled>Select assigned code...</option>
-                {routeCodes.map(c => (
+                {routeCodes?.content?.map(c => (
                   <option key={c.id} value={c.id}>{c.code}</option>
                 ))}
               </select>

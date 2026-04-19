@@ -28,7 +28,7 @@ export default function NewRoute() {
   const [endBusParkId, setEndBusParkId] = useState("");
   const [shapes, setShapes] = useState<DrawnShape[]>([]);
 
-  const selectedParks = parks.filter(p => p.id === startBusParkId || p.id === endBusParkId);
+  const selectedParks = parks?.content?.filter(p => p.id === startBusParkId || p.id === endBusParkId);
 
   const createRouteMut = useCreateRoute();
 

@@ -3,11 +3,14 @@ package ba.backend.driver.controller;
 import ba.backend.driver.dto.DriverCreateDto;
 import ba.backend.driver.dto.DriverResponseDto;
 import ba.backend.driver.dto.DriverUpdateDto;
+import ba.backend.driver.entity.DriverGender;
+import ba.backend.driver.entity.LicenseCategory;
 import ba.backend.driver.service.DriverService;
+import ba.backend.shared.dto.PagedResponseDto;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -41,8 +45,13 @@ public class DriverController {
     }
 
     @GetMapping
-    public List<DriverResponseDto> list() {
-        return driverService.list();
+    public PagedResponseDto<DriverResponseDto> list(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) DriverGender gender,
+            @RequestParam(required = false) LicenseCategory licenseCategory,
+            Pageable pageable
+    ) {
+        return PagedResponseDto.from(driverService.list(search, gender, licenseCategory, pageable));
     }
 
     @GetMapping("/{id}")

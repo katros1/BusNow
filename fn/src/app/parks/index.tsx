@@ -8,7 +8,6 @@ import { useNavigate } from "@tanstack/react-router"
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import type { ColumnDef } from "@tanstack/react-table"
@@ -33,10 +32,16 @@ export default function Parks() {
 
     const deleteParkMut = useDeletePark()
 
-    const { data: parks = [], isLoading, isError, error } = useQuery({
-        queryKey: parkKeys.lists(),
-        queryFn: parksApi.getAll,
+    const [search, setSearch] = useState("");
+    const [{ pageIndex, pageSize }, setPagination] = useState({ pageIndex: 0, pageSize: 7 });
+
+    const { data: response, isLoading, isError, error } = useQuery({
+        queryKey: [...parkKeys.lists(), { search, pageIndex, pageSize }],
+        queryFn: () => parksApi.getAll({ search, page: pageIndex, size: pageSize }),
     })
+    
+    const parks = response?.content || [];
+    const totalPages = response?.totalPages || 0;
 
     const columns: ColumnDef<Park>[] = [
         {
@@ -136,13 +141,13 @@ export default function Parks() {
     const table = useReactTable({
         data: parks,
         columns,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        initialState: {
-            pagination: {
-                pageSize: 7,
-            },
+        pageCount: totalPages,
+        state: {
+            pagination: { pageIndex, pageSize }
         },
+        onPaginationChange: setPagination,
+        manualPagination: true,
+        getCoreRowModel: getCoreRowModel(),
     })
 
     return (
@@ -173,10 +178,22 @@ export default function Parks() {
                         <button className="bg-primary text-primary-foreground shadow-sm px-3.5 py-1.5 rounded-md text-[11px] font-bold tracking-wide cursor-default transition-all">ALL PARKS</button>
                         <button className="text-muted-foreground hover:text-primary px-4 py-1.5 rounded-md text-[11px] font-semibold tracking-wide cursor-pointer transition-colors">INACTIVE</button>
                     </div>
-                    <button className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-container-lowest hover:border-primary/30 transition-colors text-[12px] font-semibold text-primary cursor-pointer">
-                        <SlidersHorizontal className="h-3 w-3 text-primary transition-colors" />
-                        Filter
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="text" 
+                            placeholder="Search parks..." 
+                            value={search} 
+                            onChange={e => {
+                                setSearch(e.target.value);
+                                setPagination(prev => ({ ...prev, pageIndex: 0 }));
+                            }} 
+                            className="w-full md:w-64 h-8 px-3 text-[12px] border border-border rounded-md focus:border-primary outline-none transition-all"
+                        />
+                        <button className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-container-lowest hover:border-primary/30 transition-colors text-[12px] font-semibold text-primary cursor-pointer">
+                            <SlidersHorizontal className="h-3 w-3 text-primary transition-colors" />
+                            Filter
+                        </button>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto bg-white">
@@ -249,7 +266,7 @@ export default function Parks() {
                 
                 <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
                     <p className="text-[12px] text-muted-foreground font-medium">
-                        Showing <span className="font-semibold text-primary">{parks.length === 0 ? 0 : table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}</span> to <span className="font-semibold text-primary">{Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, parks.length)}</span> of <span className="font-semibold text-primary">{parks.length}</span>
+                        Page <span className="font-semibold text-primary">{pageIndex + 1}</span> of <span className="font-semibold text-primary">{totalPages || 1}</span>
                     </p>
                     <div className="flex gap-1.5">
                         <button 
@@ -259,20 +276,6 @@ export default function Parks() {
                         >
                             <ChevronLeft className="h-[16px] w-[16px]" strokeWidth={2} />
                         </button>
-
-                        {Array.from({ length: table.getPageCount() }).map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => table.setPageIndex(i)}
-                                className={`h-8 min-w-[32px] px-2 flex items-center justify-center rounded-md border text-[12px] font-bold cursor-pointer transition-all ${
-                                    table.getState().pagination.pageIndex === i 
-                                      ? "bg-primary text-primary-foreground border-primary" 
-                                      : "border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary hover:border-primary/30"
-                                }`}
-                            >
-                                {i + 1}
-                            </button>
-                        ))}
 
                         <button 
                             onClick={() => table.nextPage()}

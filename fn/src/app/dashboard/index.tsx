@@ -97,7 +97,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <StatCard 
           title="Active Buses" 
-          value={buses?.length ?? 0} 
+          value={buses?.content.length ?? 0}
           icon={Bus} 
           isLoading={loadingBuses} 
           trend="Live" 
@@ -105,21 +105,21 @@ export default function Dashboard() {
         />
         <StatCard 
           title="Registered Drivers" 
-          value={drivers?.length ?? 0} 
+          value={drivers?.content.length ?? 0}
           icon={UserRound} 
           isLoading={loadingDrivers} 
           colorClass="text-blue-600" 
         />
         <StatCard 
           title="Mapped Routes" 
-          value={routes?.length ?? 0} 
+          value={routes?.content.length ?? 0}
           icon={Route} 
           isLoading={loadingRoutes} 
           colorClass="text-emerald-600" 
         />
         <StatCard 
           title="Transit Stops" 
-          value={stops?.length ?? 0} 
+          value={stops?.content.length ?? 0}
           icon={MapPin} 
           isLoading={loadingStops} 
           colorClass="text-purple-600" 

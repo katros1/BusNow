@@ -7,8 +7,10 @@ import ba.backend.shared.exception.ResourceNotFoundException;
 import ba.backend.shared.geo.PolygonGeometryMapper;
 import ba.backend.terminal.entity.BusParkEntity;
 import ba.backend.terminal.repository.BusParkRepository;
-import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,10 +32,17 @@ public class BusParkService {
     }
 
     @Transactional(readOnly = true)
-    public List<PolygonResourceDto> list() {
-        return busParkRepository.findAll().stream()
-                .map(this::toDto)
-                .toList();
+    public Page<PolygonResourceDto> list(String search, Pageable pageable) {
+        Specification<BusParkEntity> specification = (root, query, criteriaBuilder) -> {
+            if (search == null || search.isBlank()) {
+                return criteriaBuilder.conjunction();
+            }
+            return criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("name")),
+                    "%" + search.trim().toLowerCase() + "%"
+            );
+        };
+        return busParkRepository.findAll(specification, pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)

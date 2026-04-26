@@ -18,10 +18,10 @@ export function RouteCodeModal({ routeCode, onClose }: RouteCodeModalProps) {
   const [forwardRouteId, setForwardRouteId] = useState(routeCode?.forwardRoute?.id || "");
   const [backwardRouteId, setBackwardRouteId] = useState(routeCode?.backwardRoute?.id || "");
 
-  const { data: routes = [], isLoading: isLoadingRoutes } = useQuery({
-    queryKey: routeKeys.lists(),
-    queryFn: routesApi.getAll,
+  const { data: routesResponse, isLoading: isLoadingRoutes } = useQuery(routeKeys.lists(), {
+    queryFn: () => routesApi.getAll(),
   });
+  const routes = routesResponse?.content ?? [];
 
   const createMut = useCreateRouteCode();
   const updateMut = useUpdateRouteCode(routeCode?.id || "");
@@ -88,7 +88,7 @@ export function RouteCodeModal({ routeCode, onClose }: RouteCodeModalProps) {
               className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
             >
               <option value="" disabled>Select forwarding route...</option>
-              {routes.map(r => (
+              {routes.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
@@ -105,7 +105,7 @@ export function RouteCodeModal({ routeCode, onClose }: RouteCodeModalProps) {
               className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
             >
               <option value="" disabled>Select returning route...</option>
-              {routes.map(r => (
+              {routes.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>

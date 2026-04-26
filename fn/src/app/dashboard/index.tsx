@@ -69,11 +69,16 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const { data: routes, isLoading: loadingRoutes } = useQuery({ queryKey: routeKeys.lists(), queryFn: routesApi.getAll });
-  const { data: drivers, isLoading: loadingDrivers } = useQuery({ queryKey: driverKeys.lists(), queryFn: driversApi.getAll });
-  const { data: buses, isLoading: loadingBuses } = useQuery({ queryKey: busKeys.lists(), queryFn: busesApi.getAll });
-  const { data: stops, isLoading: loadingStops } = useQuery({ queryKey: stopKeys.lists(), queryFn: stopsApi.getAll });
-  const { data: parks, isLoading: loadingParks } = useQuery({ queryKey: parkKeys.lists(), queryFn: parksApi.getAll });
+  const { data: routes, isLoading: loadingRoutes } = useQuery(routeKeys.lists(), { queryFn: () => routesApi.getAll() });
+  const { data: drivers, isLoading: loadingDrivers } = useQuery(driverKeys.lists(), { queryFn: () => driversApi.getAll() });
+  const { data: buses, isLoading: loadingBuses } = useQuery(busKeys.lists(), { queryFn: () => busesApi.getAll() });
+  const { data: stops, isLoading: loadingStops } = useQuery(stopKeys.lists(), { queryFn: () => stopsApi.getAll() });
+  const { data: parks, isLoading: loadingParks } = useQuery(parkKeys.lists(), { queryFn: () => parksApi.getAll() });
+  const routeItems = routes?.content ?? [];
+  const driverItems = drivers?.content ?? [];
+  const busItems = buses?.content ?? [];
+  const stopItems = stops?.content ?? [];
+  const parkItems = parks?.content ?? [];
 
   return (
     <div className="flex-1 space-y-8 pt-6 max-w-7xl mx-auto w-full px-6 md:px-0 pb-12">
@@ -97,7 +102,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         <StatCard 
           title="Active Buses" 
-          value={buses?.content.length ?? 0}
+          value={busItems.length}
           icon={Bus} 
           isLoading={loadingBuses} 
           trend="Live" 
@@ -105,28 +110,28 @@ export default function Dashboard() {
         />
         <StatCard 
           title="Registered Drivers" 
-          value={drivers?.content.length ?? 0}
+          value={driverItems.length}
           icon={UserRound} 
           isLoading={loadingDrivers} 
           colorClass="text-blue-600" 
         />
         <StatCard 
           title="Mapped Routes" 
-          value={routes?.content.length ?? 0}
+          value={routeItems.length}
           icon={Route} 
           isLoading={loadingRoutes} 
           colorClass="text-emerald-600" 
         />
         <StatCard 
           title="Transit Stops" 
-          value={stops?.content.length ?? 0}
+          value={stopItems.length}
           icon={MapPin} 
           isLoading={loadingStops} 
           colorClass="text-purple-600" 
         />
         <StatCard 
           title="Terminals (Parks)" 
-          value={parks?.length ?? 0} 
+          value={parkItems.length} 
           icon={ParkingCircle} 
           isLoading={loadingParks} 
           colorClass="text-rose-600" 
@@ -152,9 +157,9 @@ export default function Dashboard() {
                  <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                  Mapping geospatial footprint...
               </div>
-            ) : buses?.length ? (
+            ) : busItems.length ? (
               <div className="w-full h-full flex flex-col gap-4">
-                 {buses.slice(0, 4).map(bus => (
+                 {busItems.slice(0, 4).map((bus) => (
                     <div key={bus.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-white border border-border rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
                        <div className="flex items-center gap-4">
                            <div className="h-10 w-10 shrink-0 bg-primary/10 text-primary rounded-full flex items-center justify-center">
@@ -172,11 +177,11 @@ export default function Dashboard() {
                        </div>
                     </div>
                  ))}
-                 {buses.length > 4 && (
-                    <div className="text-center mt-2 text-[13px] font-semibold text-primary cursor-pointer hover:underline">
-                        View all {buses.length} active buses →
-                    </div>
-                 )}
+                  {busItems.length > 4 && (
+                     <div className="text-center mt-2 text-[13px] font-semibold text-primary cursor-pointer hover:underline">
+                         View all {busItems.length} active buses →
+                     </div>
+                  )}
               </div>
             ) : (
                 <div className="text-center text-muted-foreground text-[14px]">

@@ -18,17 +18,17 @@ export default function NewRoute() {
   const navigate = useNavigate();
 
   // Fetch terminals for selection
-  const { data: parks = [], isLoading: isLoadingParks } = useQuery({
-    queryKey: parkKeys.lists(),
+  const { data: parksResponse, isLoading: isLoadingParks } = useQuery(parkKeys.lists(), {
     queryFn: () => parksApi.getAll(),
   });
+  const parks = parksResponse?.content ?? [];
 
   const [name, setName] = useState("");
   const [startBusParkId, setStartBusParkId] = useState("");
   const [endBusParkId, setEndBusParkId] = useState("");
   const [shapes, setShapes] = useState<DrawnShape[]>([]);
 
-  const selectedParks = parks?.content?.filter(p => p.id === startBusParkId || p.id === endBusParkId);
+  const selectedParks = parks.filter((p) => p.id === startBusParkId || p.id === endBusParkId);
 
   const createRouteMut = useCreateRoute();
 
@@ -158,7 +158,7 @@ export default function NewRoute() {
           <MapView
             onShapesChange={setShapes}
             initialShapeType="polyline"
-            parks={selectedParks as unknown as RouteBusPark[]}
+            parks={selectedParks as RouteBusPark[]}
           />
         </div>
       </div>

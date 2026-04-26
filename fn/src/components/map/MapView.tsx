@@ -49,14 +49,10 @@ function MapView({ onShapesChange, initialCoordinates, initialShapeType, parks, 
       maxBoundsViscosity={1.0}
       style={{ width: "100%", height: "100%" }}
     >
-      {/*
-        CartoDB Voyager — bright, detailed light basemap. No API key required.
-        Pairs perfectly with the project's white/surface design system.
-      */}
+      {/* Esri World Imagery satellite basemap */}
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attribution='Tiles &copy; Esri'
         maxZoom={19}
       />
 
@@ -82,11 +78,11 @@ function MapView({ onShapesChange, initialCoordinates, initialShapeType, parks, 
       {stops?.map((stop) => (
         <Polygon 
           key={stop.id} 
-          positions={stop.coordinates as [number, number][]} 
+          positions={stop.coordinates as [number, number][]}
           pathOptions={{ color: "#eab308", weight: 2, fillColor: "#eab308", fillOpacity: 0.4 }}
         >
           <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-            Stop {stop.sequence}: {stop.name || 'Unnamed'}
+            Stop {stop.sequenceIndex}: {stop.name || 'Unnamed'}
           </Tooltip>
         </Polygon>
       ))}

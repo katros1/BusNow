@@ -18,8 +18,7 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
   const [selectedStops, setSelectedStops] = useState<Set<string>>(new Set());
   const initRef = useRef(false);
 
-  const { data: assignedStops, isLoading: isAssignedLoading } = useQuery({
-    queryKey: routeKeys.stops(route?.id ?? ""),
+  const { data: assignedStops, isLoading: isAssignedLoading } = useQuery(routeKeys.stops(route?.id ?? ""), {
     queryFn: () => routesApi.getRouteStops(route!.id),
     enabled: !!route,
   });
@@ -31,8 +30,7 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
     }
   }, [assignedStops]);
 
-  const { data: stops = [], isLoading } = useQuery({
-    queryKey: stopKeys.lists(),
+  const { data: stopsResponse, isLoading } = useQuery(stopKeys.lists(), {
     queryFn: () => stopsApi.getAll(),
     enabled: !!route,
   });
@@ -41,7 +39,9 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
 
   if (!route) return null;
 
-  const filteredStops = stops?.content?.filter(s => s.name.toLowerCase().includes(query.toLowerCase()));
+  const filteredStops = (stopsResponse?.content ?? []).filter((s) =>
+    s.name.toLowerCase().includes(query.toLowerCase())
+  );
 
   const toggleStop = (stopId: string) => {
     setSelectedStops((prev) => {
@@ -105,7 +105,7 @@ export function ManageRouteStopsModal({ route, onClose }: ManageRouteStopsModalP
               No stops matched your search query.
             </div>
           ) : (
-            filteredStops.map(stop => (
+            filteredStops.map((stop) => (
               <button
                 key={stop.id}
                 onClick={() => toggleStop(stop.id)}

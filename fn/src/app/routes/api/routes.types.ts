@@ -1,11 +1,8 @@
 export interface RouteStop {
   id: string;
   sequenceIndex: number;
-  stop: {
-    id: string;
-    name: string;
-    coordinates: number[][];
-  };
+  name: string;
+  coordinates: number[][];
 }
 
 export interface RouteBusPark {

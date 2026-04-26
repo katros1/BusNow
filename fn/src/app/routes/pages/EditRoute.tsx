@@ -20,8 +20,7 @@ type CoordinateObj = { lat: number; lng: number };
 
 export default function EditRoute() {
   const { routeId } = useParams({ strict: false }) as { routeId: string };
-  const { data: route, isLoading } = useQuery({
-    queryKey: routeKeys.detail(routeId),
+  const { data: route, isLoading } = useQuery(routeKeys.detail(routeId), {
     queryFn: () => routesApi.getById(routeId),
     enabled: !!routeId,
   });
@@ -50,10 +49,10 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
   const navigate = useNavigate();
 
   // Fetch terminals for selection
-  const { data: parks = [], isLoading: isLoadingParks } = useQuery({
-    queryKey: parkKeys.lists(),
+  const { data: parksResponse, isLoading: isLoadingParks } = useQuery(parkKeys.lists(), {
     queryFn: () => parksApi.getAll(),
   });
+  const parks = parksResponse?.content ?? [];
 
   const [editName, setEditName] = useState(route.name);
   const [editStartBusParkId, setEditStartBusParkId] = useState(route.startBusPark?.id);
@@ -169,12 +168,12 @@ function EditRouteForm({ route, routeId }: { route: Route, routeId: string }) {
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-2">
                 {route.stops && route.stops.length > 0 ? (
-                  route.stops.map(stop => (
+                  route.stops.map((stop) => (
                     <span 
                       key={stop.id} 
                       className="text-[12px] font-medium bg-amber-500/10 text-amber-600 px-2.5 py-1.5 rounded-md border border-amber-500/20 flex items-center gap-1.5"
                     >
-                      <span className="font-bold">{stop.sequence}.</span> {stop.name || 'Unnamed'}
+                      <span className="font-bold">{stop.sequenceIndex}.</span> {stop.name || 'Unnamed'}
                     </span>
                   ))
                 ) : (

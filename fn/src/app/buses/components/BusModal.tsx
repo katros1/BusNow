@@ -23,15 +23,15 @@ export function BusModal({ bus, onClose }: BusModalProps) {
   const [driverId, setDriverId] = useState(bus?.currentDriver?.id || "");
   const [routeCodeId, setRouteCodeId] = useState(bus?.routeCode?.id || "");
 
-  const { data: drivers = [], isLoading: isLoadingDrivers } = useQuery({
-    queryKey: driverKeys.lists(),
-    queryFn: driversApi.getAll,
+  const { data: driversResponse, isLoading: isLoadingDrivers } = useQuery(driverKeys.lists(), {
+    queryFn: () => driversApi.getAll(),
   });
 
-  const { data: routeCodes = [], isLoading: isLoadingCodes } = useQuery({
-    queryKey: routeCodeKeys.lists(),
-    queryFn: routeCodesApi.getAll,
+  const { data: routeCodesResponse, isLoading: isLoadingCodes } = useQuery(routeCodeKeys.lists(), {
+    queryFn: () => routeCodesApi.getAll(),
   });
+  const drivers = driversResponse?.content ?? [];
+  const routeCodes = routeCodesResponse?.content ?? [];
 
   const createMut = useCreateBus();
   const updateMut = useUpdateBus(bus?.id || "");
@@ -119,7 +119,7 @@ export function BusModal({ bus, onClose }: BusModalProps) {
                 className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
               >
                 <option value="" disabled>Select active driver...</option>
-                {drivers?.content?.map(d => (
+                {drivers.map((d) => (
                   <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
                 ))}
               </select>
@@ -133,7 +133,7 @@ export function BusModal({ bus, onClose }: BusModalProps) {
                 className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer disabled:opacity-50"
               >
                 <option value="" disabled>Select assigned code...</option>
-                {routeCodes?.content?.map(c => (
+                {routeCodes.map((c) => (
                   <option key={c.id} value={c.id}>{c.code}</option>
                 ))}
               </select>

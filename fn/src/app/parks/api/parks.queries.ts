@@ -3,14 +3,12 @@ import { parksApi } from "./parks.api";
 import { parkKeys } from "./parks.keys";
 
 export const useParks = () =>
-  useQuery({
-    queryKey: parkKeys.lists(),
-    queryFn:  parksApi.getAll,
+  useQuery(parkKeys.lists(), {
+    queryFn: () => parksApi.getAll(),
   });
 
 export const usePark = (id: string) =>
-  useQuery({
-    queryKey: parkKeys.detail(id),
+  useQuery(parkKeys.detail(id), {
     queryFn:  () => parksApi.getById(id),
     enabled:  !!id,
   });
@@ -18,5 +16,5 @@ export const usePark = (id: string) =>
 export const useParksSuspense = () =>
   useSuspenseQuery({
     queryKey: parkKeys.lists(),
-    queryFn:  parksApi.getAll,
+    queryFn:  () => parksApi.getAll(),
   });

@@ -76,10 +76,9 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
             fillOpacity: 0.12,
           })
         : L.polyline(initialCoordinates, {
-            color: "#795900",
-            weight: 3,
-            opacity: 0.85,
-            dashArray: "6 4",
+            color: "#1d4ed8",
+            weight: 4,
+            opacity: 1,
           });
       drawnItems.addLayer(shape);
       shapeMap.set(shape, layerToShape(uid(), shape)!);
@@ -118,10 +117,9 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
         // ── Polyline ─────────────────────────────────────────────
         polyline: {
           shapeOptions: {
-            color: "#795900",   // Safety Amber — secondary
-            weight: 3,
-            opacity: 0.85,
-            dashArray: "6 4",
+            color: "#1d4ed8",
+            weight: 4,
+            opacity: 1,
           },
           icon: new L.DivIcon({
             iconSize: new L.Point(7, 7),

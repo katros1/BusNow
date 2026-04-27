@@ -170,7 +170,7 @@ export default function Parks() {
             </div>
 
             {/* Main Data Container */}
-            <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+            <div className="bg-card rounded-xl shadow-ambient border border-border/60 overflow-hidden">
                 
                 {/* Tabs & Controls */}
                 <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-white">

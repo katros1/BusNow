@@ -12,8 +12,10 @@ export function DashboardLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-5">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto">
+          <div className="min-h-full p-5 lg:p-7">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

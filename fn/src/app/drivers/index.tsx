@@ -147,7 +147,7 @@ export default function Drivers() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
+      <div className="bg-card rounded-xl shadow-ambient border border-border/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-3 bg-white">
             <input 
               type="text" 

@@ -32,16 +32,16 @@ const NAV_GROUPS = [
   {
     label: "Management",
     items: [
-      { to: "/buses",    label: "Buses",     icon: Bus,          badge: null },
-      { to: "/drivers",  label: "Drivers",   icon: UserRound,    badge: null },
-      { to: "/routes",   label: "Routes",    icon: Route,        badge: null },
-      { to: "/stops",    label: "Stops",     icon: MapPin,       badge: null },
-      { to: "/parks",    label: "Parks",     icon: ParkingCircle,badge: null },
+      { to: "/buses",    label: "Buses",     icon: Bus,           badge: null },
+      { to: "/drivers",  label: "Drivers",   icon: UserRound,     badge: null },
+      { to: "/routes",   label: "Routes",    icon: Route,         badge: null },
+      { to: "/stops",    label: "Stops",     icon: MapPin,        badge: null },
+      { to: "/parks",    label: "Parks",     icon: ParkingCircle, badge: null },
     ],
   },
 ] as const;
 
-// ── Tooltip wrapper (CSS-only, no lib needed) ─────────────────
+// ── Tooltip (CSS-only) ────────────────────────────────────────
 
 function NavTooltip({ label, show, children }: {
   label: string;
@@ -52,14 +52,12 @@ function NavTooltip({ label, show, children }: {
     <div className="relative group/tip">
       {children}
       {show && (
-        <span
-          className={cn(
-            "pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2",
-            "whitespace-nowrap rounded-md bg-inverse-surface px-2.5 py-1",
-            "text-xs font-medium text-inverse-on-surface shadow-ambient",
-            "opacity-0 transition-opacity duration-150 group-hover/tip:opacity-100"
-          )}
-        >
+        <span className={cn(
+          "pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2",
+          "whitespace-nowrap rounded-lg bg-[#252A38] px-2.5 py-1.5",
+          "text-[11px] font-medium text-white shadow-ambient-md",
+          "opacity-0 transition-opacity duration-150 group-hover/tip:opacity-100"
+        )}>
           {label}
         </span>
       )}
@@ -88,7 +86,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Mobile backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-20 bg-black/30 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-20 bg-black/25 backdrop-blur-[2px] lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -96,35 +94,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          // Layout
           "fixed inset-y-0 left-0 z-30 flex flex-col",
-          // Background — pure white card feel
-          "bg-card border-r border-border",
-          // Collapse: icon-only on desktop
+          // Pure white — simple, clean
+          "bg-sidebar border-r border-border/60",
+          "shadow-[1px_0_0_0_rgba(64,96,147,0.06)]",
           "transition-[width] duration-200 ease-in-out",
           collapsed ? "lg:w-[68px]" : "lg:w-[240px]",
           "w-[240px]",
-          // Mobile slide in/out
           open ? "translate-x-0" : "-translate-x-full",
-          "lg:static lg:translate-x-0 lg:translate-x-0"
+          "lg:static lg:translate-x-0"
         )}
       >
 
         {/* ── Brand header ──────────────────────────────────── */}
-        <div className={cn(
-          "flex h-[60px] shrink-0 items-center border-b border-border px-3 gap-2",
-        )}>
-          {/* Logo mark */}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg gradient-primary shadow-ambient-md">
+        <div className="flex h-[60px] shrink-0 items-center border-b border-border/60 px-3 gap-2.5">
+          {/* Logo mark — solid primary, no gradient */}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-ambient">
             <Zap className="h-4 w-4 text-white" />
           </div>
 
-          {/* App name — collapses */}
+          {/* App name */}
           <div className={cn(
             "flex-1 overflow-hidden transition-all duration-200",
             collapsed ? "lg:w-0 lg:opacity-0" : "opacity-100"
           )}>
-            <p className="truncate text-sm font-bold tracking-tight text-foreground">
+            <p className="truncate text-sm font-bold tracking-tight text-primary">
               iots
             </p>
             <p className="truncate text-[10px] font-medium text-muted-foreground">
@@ -132,13 +126,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </p>
           </div>
 
-          {/* Desktop collapse/expand button */}
+          {/* Desktop collapse button */}
           <button
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
               "hidden lg:flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-              "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground",
             )}
           >
             {collapsed
@@ -164,7 +158,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
               {/* Section label */}
               <p className={cn(
-                "mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60",
+                "mb-1 px-3 text-[9.5px] font-bold uppercase tracking-[0.12em] text-primary/35",
                 "transition-all duration-200 overflow-hidden",
                 collapsed ? "lg:h-0 lg:opacity-0 lg:mb-0" : "h-auto opacity-100"
               )}>
@@ -179,17 +173,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       to={to}
                       onClick={onClose}
                       className={cn(
-                        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
+                        "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium",
                         "transition-all duration-150",
                         active
-                          ? "bg-primary text-primary-foreground shadow-ambient-md"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                          ? "bg-primary text-primary-foreground shadow-ambient"
+                          : "text-foreground/65 hover:bg-[#4C8CE4]/[0.07] hover:text-foreground",
                         collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:mx-auto"
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className={cn("h-[15px] w-[15px] shrink-0", active && "opacity-90")} />
 
-                      {/* Label */}
                       <span className={cn(
                         "flex-1 truncate transition-all duration-200",
                         collapsed && "lg:hidden"
@@ -201,26 +194,25 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       {badge === "live" && !collapsed && (
                         <span className="flex items-center gap-1">
                           <span className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            active ? "bg-primary-foreground" : "bg-secondary-container",
-                            "pulse-live"
+                            "h-1.5 w-1.5 rounded-full pulse-live",
+                            active ? "bg-white/70" : "bg-secondary-container"
                           )} />
                           {!active && (
-                            <span className="text-[10px] font-semibold text-secondary-container">
+                            <span className="text-[9.5px] font-bold tracking-wide text-secondary-container">
                               LIVE
                             </span>
                           )}
                         </span>
                       )}
 
-                      {/* Live dot on icon when collapsed */}
+                      {/* Collapsed live dot */}
                       {badge === "live" && collapsed && (
-                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-secondary-container pulse-live" />
+                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-secondary-container pulse-live" />
                       )}
 
-                      {/* Active indicator chevron */}
+                      {/* Active chevron */}
                       {active && !collapsed && (
-                        <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
+                        <ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
                       )}
                     </Link>
                   </NavTooltip>
@@ -230,17 +222,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           ))}
         </nav>
 
-        {/* ── Footer — support + user strip ─────────────────── */}
-        <div className="shrink-0 border-t border-border">
-          {/* Support */}
-          <div className="px-2 pt-3">
+        {/* ── Footer ────────────────────────────────────────── */}
+        <div className="shrink-0 border-t border-border/60 bg-surface-container/20">
+          {/* Support link */}
+          <div className="px-2 pt-2.5">
             <NavTooltip label="Support" show={collapsed}>
               <button className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
-                "text-foreground/60 transition-colors hover:bg-muted hover:text-foreground",
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium",
+                "text-foreground/50 transition-colors hover:bg-muted hover:text-foreground",
                 collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:mx-auto"
               )}>
-                <HelpCircle className="h-4 w-4 shrink-0" />
+                <HelpCircle className="h-[15px] w-[15px] shrink-0" />
                 <span className={cn("truncate", collapsed && "lg:hidden")}>Support</span>
               </button>
             </NavTooltip>
@@ -248,11 +240,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
           {/* User profile strip */}
           <div className={cn(
-            "flex items-center gap-3 p-3 mt-1",
+            "flex items-center gap-2.5 p-3",
             collapsed && "lg:justify-center lg:px-2"
           )}>
             {/* Avatar */}
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white ring-2 ring-primary/20">
               A
             </div>
 
@@ -261,7 +253,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               "flex-1 overflow-hidden transition-all duration-200",
               collapsed ? "lg:hidden" : ""
             )}>
-              <p className="truncate text-sm font-semibold text-foreground leading-tight">
+              <p className="truncate text-[13px] font-semibold text-foreground leading-tight">
                 Admin User
               </p>
               <p className="truncate text-[10px] text-muted-foreground">
@@ -269,20 +261,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               </p>
             </div>
 
-            {/* Settings + logout — hidden when collapsed */}
+            {/* Settings + logout */}
             <div className={cn(
-              "flex items-center gap-1 transition-all duration-200",
+              "flex items-center gap-0.5 transition-all duration-200",
               collapsed ? "lg:hidden" : ""
             )}>
               <button
                 aria-label="Settings"
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
                 <Settings className="h-3.5 w-3.5" />
               </button>
               <button
                 aria-label="Sign out"
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-error-container hover:text-error transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>

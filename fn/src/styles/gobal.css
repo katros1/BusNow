@@ -4,13 +4,14 @@
 @import "shadcn/tailwind.css";
 
 /* ============================================================
-   Urban Transit Tracker — Design System
-   Source: Stitch "iots"
-   Primary:   Urban Blue   #005BBF / #1A73E8
-   Secondary: Safety Amber #795900 / #FEBF0D
-   Neutral:   Surface Grey #F8F9FA
-   Font:      Inter (Google Fonts)
-   Radius:    ROUND_FOUR → 0.25rem base
+   iots Transit Admin — Design System
+   Palette: colorhunt #4060934c8ce491d06cfff799
+   Primary:     Deep Navy   #406093
+   Interactive: Cornflower  #4C8CE4
+   Active:      Green       #91D06C
+   Highlight:   Yellow      #FFF799
+   Font:        Inter
+   Radius:      ROUND_FOUR → 0.25rem base
    ============================================================ */
 
 
@@ -20,6 +21,10 @@
   /* Core semantic tokens */
   --color-background:           var(--background);
   --color-foreground:           var(--foreground);
+  --color-error:                var(--error);
+  --color-on-error:             var(--on-error);
+  --color-error-container:      var(--error-container);
+  --color-on-error-container:   var(--on-error-container);
   --color-card:                 var(--card);
   --color-card-foreground:      var(--card-foreground);
   --color-popover:              var(--popover);
@@ -38,7 +43,7 @@
   --color-input:                var(--input);
   --color-ring:                 var(--ring);
 
-  /* Urban Transit extended palette */
+  /* Extended palette */
   --color-surface:              var(--surface);
   --color-surface-bright:       var(--surface-bright);
   --color-surface-dim:          var(--surface-dim);
@@ -69,14 +74,12 @@
   --color-outline-variant:      var(--outline-variant);
   --color-surface-tint:         var(--surface-tint);
 
-  /* Data visualization — transit-specific */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  /* Sidebar */
   --color-sidebar:                   var(--sidebar);
   --color-sidebar-foreground:        var(--sidebar-foreground);
   --color-sidebar-primary:           var(--sidebar-primary);
@@ -86,126 +89,134 @@
   --color-sidebar-border:            var(--sidebar-border);
   --color-sidebar-ring:              var(--sidebar-ring);
 
-  /* Radius scale — ROUND_FOUR origin (4px = 0.25rem) */
-  --radius-sm:  calc(var(--radius) * 0.5);   /* 2px  */
-  --radius-md:  var(--radius);               /* 4px  */
-  --radius-lg:  calc(var(--radius) * 2);     /* 8px  */
-  --radius-xl:  calc(var(--radius) * 3);     /* 12px */
-  --radius-2xl: calc(var(--radius) * 4);     /* 16px */
-  --radius-3xl: calc(var(--radius) * 6);     /* 24px */
+  /* Radius scale */
+  --radius-sm:  calc(var(--radius) * 0.5);
+  --radius-md:  var(--radius);
+  --radius-lg:  calc(var(--radius) * 2);
+  --radius-xl:  calc(var(--radius) * 3);
+  --radius-2xl: calc(var(--radius) * 4);
+  --radius-3xl: calc(var(--radius) * 6);
   --radius-full: 9999px;
 
-  /* Typography */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "Fira Code", monospace;
 
-  /* Transit-specific spacing scale */
-  --spacing-transit-xs: 0.25rem;   /* 4px  */
-  --spacing-transit-sm: 0.5rem;    /* 8px  */
-  --spacing-transit-md: 1rem;      /* 16px */
-  --spacing-transit-lg: 1.5rem;    /* 24px */
-  --spacing-transit-xl: 2rem;      /* 32px */
-  --spacing-transit-2xl: 3rem;     /* 48px */
+  --spacing-transit-xs: 0.25rem;
+  --spacing-transit-sm: 0.5rem;
+  --spacing-transit-md: 1rem;
+  --spacing-transit-lg: 1.5rem;
+  --spacing-transit-xl: 2rem;
+  --spacing-transit-2xl: 3rem;
 }
 
 /* ── Light Mode ────────────────────────────────────────────── */
 :root {
-  /* ROUND_FOUR → 4px base radius */
   --radius: 0.25rem;
 
-  /* ── Core ShadCN tokens mapped to iots palette ── */
-  /* Primary: Urban Blue */
-  --primary:            #005BBF;
+  /* Primary: Deep Navy #406093 */
+  --primary:            #406093;
   --primary-foreground: #ffffff;
 
-  /* Secondary: Safety Amber */
-  --secondary:            #795900;
+  /* Secondary: Green derived */
+  --secondary:            #2E6B1A;
   --secondary-foreground: #ffffff;
 
-  /* Background & surface */
-  --background: #f8f9fa;
-  --foreground: #191c1d;
+  /* Background & surface — blue-tinted neutral */
+  --background: #F4F6FA;
+  --foreground: #1A1F2E;
 
-  /* Card / Popover → surface-container-lowest */
-  --card:            #C5C7C8;
-  --card-foreground: #191c1d;
+  /* Card / Popover — pure white */
+  --card:            #ffffff;
+  --card-foreground: #1A1F2E;
   --popover:         #ffffff;
-  --popover-foreground: #191c1d;
+  --popover-foreground: #1A1F2E;
 
-  /* Muted: surface-container */
-  --muted:            #edeeef;
-  --muted-foreground: #414754;
+  /* Muted — light blue-grey */
+  --muted:            #EEF2F8;
+  --muted-foreground: #4A5568;
 
-  /* Accent: primary-fixed (light blue tint) */
-  --accent:            #d8e2ff;
-  --accent-foreground: #001a41;
+  /* Accent — cornflower light tint */
+  --accent:            #DDEAFF;
+  --accent-foreground: #1A3060;
 
-  /* Destructive: error tokens */
-  --destructive:            #ba1a1a;
+  /* Destructive / Error */
+  --destructive:            #C0392B;
   --destructive-foreground: #ffffff;
+  --error:                  #C0392B;
+  --on-error:               #ffffff;
+  --error-container:        #FFDDDD;
+  --on-error-container:     #4A0000;
 
   /* Structural */
-  --border: #c1c6d6;
-  --input:  #c1c6d6;
-  --ring:   #1a73e8;
+  --border: #D0D8EA;
+  --input:  #D0D8EA;
+  --ring:   #4C8CE4;
 
-  /* ── Urban Transit Extended Tokens ── */
-  --surface:                  #f8f9fa;
-  --surface-bright:           #f8f9fa;
-  --surface-dim:              #d9dadb;
-  --surface-container:        #edeeef;
-  --surface-container-low:    #f3f4f5;
-  --surface-container-high:   #e7e8e9;
+  /* ── Extended surface tokens ── */
+  --surface:                  #F4F6FA;
+  --surface-bright:           #F8FAFF;
+  --surface-dim:              #D4DAE8;
+  --surface-container:        #EEF2F8;
+  --surface-container-low:    #F4F6FA;
+  --surface-container-high:   #E4EAF4;
   --surface-container-lowest: #ffffff;
-  --surface-container-highest:#e1e3e4;
-  --surface-tint:             #005bc0;
-  --surface-variant:          #e1e3e4;
+  --surface-container-highest:#DCE3F0;
+  --surface-tint:             #406093;
+  --surface-variant:          #DCE3F0;
 
-  --primary-container:        #1a73e8;
+  /* Primary container — Cornflower #4C8CE4 */
+  --primary-container:        #4C8CE4;
   --on-primary-container:     #ffffff;
-  --primary-fixed:            #d8e2ff;
-  --primary-fixed-dim:        #adc7ff;
-  --on-primary-fixed:         #001a41;
-  --on-primary-fixed-variant: #004493;
+  --primary-fixed:            #DDEAFF;
+  --primary-fixed-dim:        #B8D0F8;
+  --on-primary-fixed:         #0A1A40;
+  --on-primary-fixed-variant: #1A4A80;
 
-  --secondary-container:      #febf0d;
-  --on-secondary-container:   #6d5000;
-  --secondary-fixed:          #ffdfa0;
-  --secondary-fixed-dim:      #fbbc05;
+  /* Secondary container — Green #91D06C */
+  --secondary-container:      #91D06C;
+  --on-secondary-container:   #1A3A0A;
+  --secondary-fixed:          #D4F4BC;
+  --secondary-fixed-dim:      #AADE88;
 
-  /* Tertiary: Safety Orange-Red */
-  --tertiary:            #9e4300;
-  --tertiary-container:  #c55500;
+  /* Tertiary — Yellow #FFF799 */
+  --tertiary:            #856B00;
+  --tertiary-container:  #FFF799;
   --on-tertiary:         #ffffff;
-  --on-tertiary-container: #0e0200;
-  --tertiary-fixed:      #ffdbcb;
-  --tertiary-fixed-dim:  #ffb691;
+  --on-tertiary-container:#3D3000;
+  --tertiary-fixed:      #FFF9CC;
+  --tertiary-fixed-dim:  #FFF066;
 
-  --inverse-surface:    #2e3132;
-  --inverse-on-surface: #f0f1f2;
-  --inverse-primary:    #adc7ff;
+  --inverse-surface:    #252A38;
+  --inverse-on-surface: #EEF2F8;
+  --inverse-primary:    #B8D0F8;
 
-  --outline:         #727785;
-  --outline-variant: #c1c6d6;
+  --outline:         #7A8BA8;
+  --outline-variant: #C4CDE0;
 
-  /* ── Data Visualization (transit-branded) ── */
-  --chart-1: #005BBF;   /* Urban Blue   — primary routes  */
-  --chart-2: #1a73e8;   /* Sky Blue     — secondary routes */
-  --chart-3: #795900;   /* Amber Brown  — alerts           */
-  --chart-4: #febf0d;   /* Safety Gold  — warnings         */
-  --chart-5: #9e4300;   /* Burnt Orange — critical         */
+  /* ── Chart tokens — palette-aligned ── */
+  --chart-1: #406093;
+  --chart-2: #4C8CE4;
+  --chart-3: #2E6B1A;
+  --chart-4: #91D06C;
+  --chart-5: #856B00;
 
-  /* ── Sidebar — matches surface hierarchy ── */
-  --sidebar:                    #f3f4f5;
-  --sidebar-foreground:         #191c1d;
-  --sidebar-primary:            #005BBF;
+  /* ── Sidebar — pure white, simple ── */
+  --sidebar:                    #ffffff;
+  --sidebar-foreground:         #1A1F2E;
+  --sidebar-primary:            #406093;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:             #d8e2ff;
-  --sidebar-accent-foreground:  #001a41;
-  --sidebar-border:             #c1c6d6;
-  --sidebar-ring:               #1a73e8;
+  --sidebar-accent:             #DDEAFF;
+  --sidebar-accent-foreground:  #1A3060;
+  --sidebar-border:             #D0D8EA;
+  --sidebar-ring:               #4C8CE4;
 }
 
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: var(--outline-variant); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--outline); }
 
 /* ── Base Layer ────────────────────────────────────────────── */
 @layer base {
@@ -227,9 +238,8 @@
   }
 }
 
-/* ── Utilities — Urban Transit specific ───────────────────── */
+/* ── Utilities ─────────────────────────────────────────────── */
 @layer utilities {
-  /* Glassmorphism — per design system Glass & Gradient rule */
   .glass {
     background: color-mix(in srgb, var(--surface-variant) 70%, transparent);
     backdrop-filter: blur(24px);
@@ -242,26 +252,24 @@
     -webkit-backdrop-filter: blur(12px);
   }
 
-  /* Primary CTA gradient — tactile glow effect */
   .gradient-primary {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
   }
 
-  /* Ambient shadow — tinted on-surface, not black */
+  /* Ambient shadows tinted with navy */
   .shadow-ambient {
-    box-shadow: 0 12px 32px rgba(25, 28, 29, 0.06);
+    box-shadow: 0 4px 24px rgba(64, 96, 147, 0.08), 0 1px 4px rgba(64, 96, 147, 0.04);
   }
 
   .shadow-ambient-md {
-    box-shadow: 0 8px 24px rgba(25, 28, 29, 0.08);
+    box-shadow: 0 8px 32px rgba(64, 96, 147, 0.12), 0 2px 8px rgba(64, 96, 147, 0.06);
   }
 
-  /* Ghost border — outline-variant at 15% opacity */
   .border-ghost {
     border: 1px solid color-mix(in srgb, var(--outline-variant) 15%, transparent);
   }
 
-  /* Live status pulse — secondary/amber dot */
+  /* Live pulse — green dot */
   .pulse-live {
     animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
@@ -271,7 +279,6 @@
     50%       { opacity: 0.5; transform: scale(0.85); }
   }
 
-  /* Route chip — primary-fixed tint */
   .route-chip {
     background: var(--primary-fixed);
     color: var(--on-primary-fixed);
@@ -283,14 +290,12 @@
     text-transform: uppercase;
   }
 
-  /* Tonal depth layers */
   .surface-0  { background: var(--surface); }
   .surface-1  { background: var(--surface-container); }
   .surface-2  { background: var(--surface-container-lowest); }
 
-  /* Touch target compliance ≥ 48px for transit use */
   .touch-target {
-    min-height: 3rem;    /* 48px */
+    min-height: 3rem;
     min-width: 3rem;
   }
 }

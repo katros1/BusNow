@@ -164,90 +164,85 @@ export default function Buses() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-border overflow-hidden">
-        <div className="px-5 py-3 border-b border-border flex items-center bg-white">
-            <input 
-              type="text" 
-              placeholder="Search buses..." 
-              value={search} 
+      <div className="bg-card rounded-xl shadow-ambient border border-border/60 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border/60 flex items-center bg-surface-container/40">
+            <input
+              type="text"
+              placeholder="Search buses..."
+              value={search}
               onChange={e => {
                   setSearch(e.target.value);
                   setPagination(prev => ({ ...prev, pageIndex: 0 }));
-              }} 
-              className="w-full md:max-w-xs h-9 px-3 text-[13px] border border-border rounded-md focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+              }}
+              className="w-full md:max-w-xs h-9 px-3 text-[13px] border border-border/70 rounded-lg bg-card focus:border-primary/40 focus:ring-2 focus:ring-primary/15 outline-none transition-all placeholder:text-muted-foreground/50"
             />
         </div>
-        <div className="overflow-x-auto bg-white">
+        <div className="overflow-x-auto bg-card">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b border-border bg-white hover:bg-white">
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className="h-11 px-5 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-widest bg-white"
-                    >
+                    <TableHead key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody className="divide-y divide-border bg-white">
+            <TableBody>
               {isLoading ? (
-                <TableRow className="hover:bg-white border-transparent">
-                  <TableCell colSpan={columns.length} className="h-32 text-center text-[13px] text-muted-foreground">
-                    <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-2"></div>
-                    Loading buses...
+                <TableRow className="hover:bg-transparent border-transparent">
+                  <TableCell colSpan={columns.length} className="h-36 text-center text-[13px] text-muted-foreground">
+                    <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-2.5" />
+                    Loading fleet data…
                   </TableCell>
                 </TableRow>
               ) : isError ? (
-                <TableRow className="hover:bg-white border-transparent">
-                  <TableCell colSpan={columns.length} className="h-32 text-center text-[13px] text-error">
+                <TableRow className="hover:bg-transparent border-transparent">
+                  <TableCell colSpan={columns.length} className="h-36 text-center text-[13px] text-error">
                     Error loading buses: {(error as Error)?.message}
                   </TableCell>
                 </TableRow>
               ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="group transition-colors hover:bg-primary/[0.02] border-border"
-                  >
+                  <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="px-5 py-3">
+                      <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
-                <TableRow className="hover:bg-white border-transparent">
-                  <TableCell colSpan={columns.length} className="h-40 text-center text-muted-foreground">
-                    <p className="text-[13px] font-medium text-foreground">No buses recorded.</p>
+                <TableRow className="hover:bg-transparent border-transparent">
+                  <TableCell colSpan={columns.length} className="h-44 text-center">
+                    <p className="text-[13px] font-semibold text-foreground">No buses recorded.</p>
+                    <p className="text-[12px] text-muted-foreground mt-1">Register your first bus to get started.</p>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-        <div className="px-5 py-3 bg-white flex items-center justify-between border-t border-border">
+        <div className="px-5 py-3.5 bg-surface-container/30 flex items-center justify-between border-t border-border/60">
           <p className="text-[12px] text-muted-foreground font-medium">
             Page <span className="font-semibold text-primary">{pageIndex + 1}</span> of <span className="font-semibold text-primary">{totalPages || 1}</span>
           </p>
           <div className="flex gap-1.5">
-            <button 
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            <button
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/70 text-[13px] text-muted-foreground hover:bg-card hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
             >
-                &lt;
+              ‹
             </button>
-            <button 
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                className="h-8 w-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+            <button
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/70 text-[13px] text-muted-foreground hover:bg-card hover:text-primary hover:border-primary/30 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
             >
-                &gt;
+              ›
             </button>
           </div>
         </div>

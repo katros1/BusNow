@@ -26,8 +26,9 @@ public class TripService {
     }
 
     @Transactional
-    public void completeTrip(UUID tripId) {
-        tripRepository.findById(tripId).ifPresent(trip -> trip.complete(Instant.now()));
+    public void completeTrip(UUID tripId, int finalIn, int finalOut) {
+        tripRepository.findById(tripId)
+                .ifPresent(trip -> trip.complete(Instant.now(), finalIn, finalOut));
     }
 
     @Transactional

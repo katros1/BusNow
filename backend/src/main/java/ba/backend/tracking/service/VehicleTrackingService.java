@@ -9,6 +9,8 @@ import ba.backend.tracking.event.VehicleDataReceivedEvent;
 import ba.backend.tracking.websocket.LiveTrackingHandler;
 import ba.backend.trip.entity.TripEntity;
 import ba.backend.trip.entity.TripStatus;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import ba.backend.trip.repository.TripRepository;
 import ba.backend.trip.service.TripService;
 import ba.backend.vehicledata.model.VehiclePayload;
@@ -62,18 +64,20 @@ public class VehicleTrackingService {
     private final TripRepository tripRepository;
     private final TripService tripService;
     private final GeofenceService geofenceService;
+    private final VehicleLocationService locationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final LiveTrackingHandler liveTrackingHandler;
 
     public VehicleTrackingService(BusRepository busRepository, RouteRepository routeRepository,
             TripRepository tripRepository, TripService tripService,
-            GeofenceService geofenceService, SimpMessagingTemplate messagingTemplate,
-            LiveTrackingHandler liveTrackingHandler) {
-        this.busRepository = busRepository;
-        this.routeRepository = routeRepository;
-        this.tripRepository = tripRepository;
-        this.tripService = tripService;
-        this.geofenceService = geofenceService;
+            GeofenceService geofenceService, VehicleLocationService locationService,
+            SimpMessagingTemplate messagingTemplate, LiveTrackingHandler liveTrackingHandler) {
+        this.busRepository    = busRepository;
+        this.routeRepository  = routeRepository;
+        this.tripRepository   = tripRepository;
+        this.tripService      = tripService;
+        this.geofenceService  = geofenceService;
+        this.locationService  = locationService;
         this.messagingTemplate = messagingTemplate;
         this.liveTrackingHandler = liveTrackingHandler;
     }
@@ -150,7 +154,9 @@ public class VehicleTrackingService {
         if (state.activeTripId() != null
                 && nowInEndParkRouteId != null
                 && prevState.inEndParkOfRouteId() == null) {
-            tripService.completeTrip(state.activeTripId());
+            int finalIn  = passengers != null ? passengers.getIn()  : state.tripSnapshotIn();
+            int finalOut = passengers != null ? passengers.getOut() : state.tripSnapshotOut();
+            tripService.completeTrip(state.activeTripId(), finalIn, finalOut);
             state = state.withTripCleared();
         }
 
@@ -161,6 +167,15 @@ public class VehicleTrackingService {
 
         busStates.put(bus.getId(), state);
         busRepository.updatePosition(bus.getId(), lat, lon);
+
+        // Persist location frame
+        Instant recordedAt = parseRecordedAt(payload.getDevice().getTimestamp());
+        locationService.record(bus.getId(), state.activeTripId(),
+                lat, lon,
+                parseDoubleOrNull(gps.getSpeedKmh()),
+                parseDoubleOrNull(gps.getHeadingDeg()),
+                passengers != null ? passengers.getRemaining() : null,
+                recordedAt);
 
         RouteEntity activeRoute = findById(routes, state.activeRouteId());
         VehiclePositionEvent position = positionEvent(bus, deviceId, gps, passengers,
@@ -223,12 +238,20 @@ public class VehicleTrackingService {
     }
 
     private Double parseDoubleOrNull(String value) {
-        if (value == null || value.isBlank() || "null".equalsIgnoreCase(value))
-            return null;
+        if (value == null || value.isBlank() || "null".equalsIgnoreCase(value)) return null;
         try {
             return Double.parseDouble(value);
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private Instant parseRecordedAt(String timestamp) {
+        if (timestamp == null) return Instant.now();
+        try {
+            return ZonedDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
+        } catch (Exception e) {
+            return Instant.now();
         }
     }
 }

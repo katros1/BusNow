@@ -45,6 +45,13 @@ public class TripEntity extends BaseEntity {
     @Column(name = "tr_passengers_on_board", nullable = false)
     private int passengersOnBoard;
 
+    // Device counters captured when trip ends — diff against snapshot gives trip totals
+    @Column(name = "tr_final_in")
+    private Integer finalIn;
+
+    @Column(name = "tr_final_out")
+    private Integer finalOut;
+
     protected TripEntity() {}
 
     public TripEntity(BusEntity bus, RouteEntity route, Instant startedAt,
@@ -66,10 +73,14 @@ public class TripEntity extends BaseEntity {
     public int getSnapshotIn() { return snapshotIn; }
     public int getSnapshotOut() { return snapshotOut; }
     public int getPassengersOnBoard() { return passengersOnBoard; }
+    public Integer getFinalIn()       { return finalIn; }
+    public Integer getFinalOut()      { return finalOut; }
 
-    public void complete(Instant endedAt) {
-        this.status = TripStatus.COMPLETED;
-        this.endedAt = endedAt;
+    public void complete(Instant endedAt, int finalIn, int finalOut) {
+        this.status   = TripStatus.COMPLETED;
+        this.endedAt  = endedAt;
+        this.finalIn  = finalIn;
+        this.finalOut = finalOut;
     }
 
     public void updatePassengersOnBoard(int count) {

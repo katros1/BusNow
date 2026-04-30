@@ -5,6 +5,7 @@ import 'package:client/features/transit/presentation/pages/search_results_page.d
 import 'package:client/features/transit/presentation/pages/route_details_page.dart';
 import 'package:client/features/transit/presentation/pages/live_tracking_page.dart';
 import 'package:client/features/transit/presentation/pages/saved_routes_page.dart';
+import 'package:client/features/transit/presentation/pages/nearby_stops_page.dart';
 import 'package:client/features/profile/presentation/pages/settings_page.dart';
 import 'package:client/core/widgets/root_layout.dart';
 
@@ -47,6 +48,11 @@ class AppRouter {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/tracking',
         builder: (context, state) => const LiveTrackingPage(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/nearby',
+        builder: (context, state) => const NearbyStopsPage(),
       ),
     ],
   );

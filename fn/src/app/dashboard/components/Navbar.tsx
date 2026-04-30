@@ -16,9 +16,22 @@ interface NavbarProps {
   onMenuClick: () => void;
 }
 
+function resolveMeta(pathname: string) {
+  if (ROUTE_META[pathname]) return ROUTE_META[pathname];
+  if (pathname.startsWith("/tracking/"))
+    return { title: "Vehicle Tracking", description: "Live position & trip data" };
+  if (pathname.startsWith("/routes/") && pathname.endsWith("/edit"))
+    return { title: "Edit Route", description: "Modify route configuration" };
+  if (pathname.startsWith("/stops/") && pathname.endsWith("/edit"))
+    return { title: "Edit Stop", description: "Modify stop details" };
+  if (pathname.startsWith("/parks/") && pathname.endsWith("/edit"))
+    return { title: "Edit Park", description: "Modify park details" };
+  return { title: "iots Transit", description: "" };
+}
+
 export function Navbar({ onMenuClick }: NavbarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const meta = ROUTE_META[pathname] ?? { title: "Urban Transit", description: "" };
+  const meta = resolveMeta(pathname);
 
   return (
     <header className={[

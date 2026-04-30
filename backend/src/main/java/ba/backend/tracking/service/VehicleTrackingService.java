@@ -109,6 +109,7 @@ public class VehicleTrackingService {
         if (gps == null || !gps.isValid()) {
             VehiclePositionEvent noFix = noFixEvent(bus, deviceId, payload.getDevice().getTimestamp(), state);
             messagingTemplate.convertAndSend(TRACKING_TOPIC, noFix);
+            messagingTemplate.convertAndSend(TRACKING_TOPIC + "/" + bus.getId(), noFix);
             liveTrackingHandler.broadcast(noFix);
             return;
         }
@@ -181,6 +182,7 @@ public class VehicleTrackingService {
         VehiclePositionEvent position = positionEvent(bus, deviceId, gps, passengers,
                 payload.getDevice().getTimestamp(), state, activeRoute);
         messagingTemplate.convertAndSend(TRACKING_TOPIC, position);
+        messagingTemplate.convertAndSend(TRACKING_TOPIC + "/" + bus.getId(), position);
         liveTrackingHandler.broadcast(position);
     }
 

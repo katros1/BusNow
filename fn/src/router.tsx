@@ -6,7 +6,6 @@ import {
 } from "@tanstack/react-router";
 import { DashboardLayout } from "./app/dashboard/layout";
 import Dashboard from "./app/dashboard";
-import { Placeholder } from "@/components/feedback/Placeholder";
 import Drivers from "./app/drivers";
 import Buses from "./app/buses";
 import Stops from "./app/stops";
@@ -104,10 +103,19 @@ const editParkRoute = createRoute({
   component: EditPark,
 });
 
+import TrackingOverview from "./app/tracking/pages/Index";
+import VehicleTracking from "./app/tracking/pages/VehicleTracking";
+
 const trackingRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/tracking",
-  component: () => <Placeholder name="Live Tracking" />,
+  component: TrackingOverview,
+});
+
+const vehicleTrackingRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/tracking/$busId",
+  component: VehicleTracking,
 });
 
 // ── Route tree ─────────────────────────────────────────────────
@@ -126,6 +134,7 @@ const routeTree = rootRoute.addChildren([
     newParkRoute,
     editParkRoute,
     trackingRoute,
+    vehicleTrackingRoute,
   ]),
 ]);
 

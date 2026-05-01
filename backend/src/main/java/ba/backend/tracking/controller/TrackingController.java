@@ -3,6 +3,7 @@ package ba.backend.tracking.controller;
 import ba.backend.bus.entity.BusEntity;
 import ba.backend.bus.repository.BusRepository;
 import ba.backend.route.entity.RouteEntity;
+import ba.backend.route.repository.RouteRepository;
 import ba.backend.tracking.dto.TrackingVehicleDto;
 import ba.backend.trip.entity.TripEntity;
 import ba.backend.trip.entity.TripStatus;
@@ -21,21 +22,15 @@ public class TrackingController {
 
     private final BusRepository busRepository;
     private final TripRepository tripRepository;
+    private final RouteRepository routeRepository;
 
-    public TrackingController(BusRepository busRepository, TripRepository tripRepository) {
-        this.busRepository = busRepository;
-        this.tripRepository = tripRepository;
+    public TrackingController(BusRepository busRepository, TripRepository tripRepository,
+            RouteRepository routeRepository) {
+        this.busRepository   = busRepository;
+        this.tripRepository  = tripRepository;
+        this.routeRepository = routeRepository;
     }
 
-    /**
-     * GET /api/v1/tracking/vehicles
-     *
-     * Returns all buses with their last known position, assigned route, and active trip info.
-     * Use this as the initial snapshot for the tracking overview map.
-     *
-     * For live updates, subscribe to STOMP topic /topic/tracking.
-     * For a single bus, subscribe to /topic/tracking/{busId}.
-     */
     @GetMapping("/vehicles")
     public List<TrackingVehicleDto> getVehicles() {
         Map<UUID, TripEntity> activeByBusId = tripRepository.findByStatus(TripStatus.ACTIVE)
@@ -48,33 +43,42 @@ public class TrackingController {
     }
 
     private TrackingVehicleDto toDto(BusEntity bus, TripEntity trip) {
-        UUID routeId = null;
-        String routeName = null;
-        String routeCode = null;
-        String direction = null;
-        UUID activeTripId = null;
+        UUID routeId              = null;
+        String routeName          = null;
+        String routeCode          = null;
+        String direction          = null;
+        UUID activeTripId         = null;
+        java.time.Instant tripStartedAt = null;
         Integer passengersOnBoard = null;
-        Integer availableSeats = null;
+        Integer availableSeats    = null;
 
         if (trip != null) {
             RouteEntity route = trip.getRoute();
-            routeId = route.getId();
-            routeName = route.getName();
-            routeCode = route.getRouteCode() != null ? route.getRouteCode().getCode() : null;
-            direction = route.getDirection() != null ? route.getDirection().name() : null;
-            activeTripId = trip.getId();
+            routeId           = route.getId();
+            routeName         = route.getName();
+            routeCode         = route.getRouteCode() != null ? route.getRouteCode().getCode() : null;
+            direction         = route.getDirection() != null ? route.getDirection().name() : null;
+            activeTripId      = trip.getId();
+            tripStartedAt     = trip.getStartedAt();
             passengersOnBoard = trip.getPassengersOnBoard();
-            availableSeats = bus.getCapacity() != null
+            availableSeats    = bus.getCapacity() != null
                     ? Math.max(0, bus.getCapacity() - trip.getPassengersOnBoard())
                     : null;
         } else if (bus.getRouteCode() != null) {
             routeCode = bus.getRouteCode().getCode();
+            List<RouteEntity> busRoutes = routeRepository.findByRouteCodeId(bus.getRouteCode().getId());
+            if (!busRoutes.isEmpty()) {
+                RouteEntity fallback = busRoutes.get(0);
+                routeId   = fallback.getId();
+                routeName = fallback.getName();
+                direction = fallback.getDirection() != null ? fallback.getDirection().name() : null;
+            }
         }
 
         return new TrackingVehicleDto(
                 bus.getId(), bus.getPlateNumber(), bus.getModel(), bus.getCapacity(),
                 bus.getCurrentLatitude(), bus.getCurrentLongitude(),
                 routeId, routeName, routeCode, direction,
-                activeTripId, passengersOnBoard, availableSeats);
+                activeTripId, tripStartedAt, passengersOnBoard, availableSeats);
     }
 }

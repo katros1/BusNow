@@ -10,6 +10,7 @@ export interface VehiclePositionEvent {
   timestamp: string;
   route: VehicleRouteInfo | null;
   trip: VehicleTripInfo | null;
+  currentStop: VehicleStopInfo | null;
 }
 
 export interface VehicleRouteInfo {
@@ -29,6 +30,12 @@ export interface VehicleTripInfo {
   availableSeats: number | null;
 }
 
+export interface VehicleStopInfo {
+  id: string;
+  name: string;
+  sequence: number;
+}
+
 export interface TrackingVehicleDto {
   busId: string;
   plateNumber: string;
@@ -41,6 +48,7 @@ export interface TrackingVehicleDto {
   routeCode: string | null;
   direction: string | null;
   activeTripId: string | null;
+  tripStartedAt: string | null;
   passengersOnBoard: number | null;
   availableSeats: number | null;
 }

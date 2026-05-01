@@ -15,7 +15,8 @@ public record VehiclePositionEvent(
         Double headingDeg,
         String timestamp,
         RouteInfo route,
-        TripInfo trip
+        TripInfo trip,
+        StopInfo currentStop
 ) {
     public record RouteInfo(
             UUID id,
@@ -32,5 +33,12 @@ public record VehiclePositionEvent(
             int passengersOut,
             int onBoard,
             Integer availableSeats
+    ) {}
+
+    /** Non-null when the bus is physically inside a stop's geofence polygon. */
+    public record StopInfo(
+            UUID id,
+            String name,
+            int sequence
     ) {}
 }

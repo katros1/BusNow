@@ -1,5 +1,6 @@
 package ba.backend.tracking.dto;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record TrackingVehicleDto(
@@ -14,6 +15,7 @@ public record TrackingVehicleDto(
         String routeCode,
         String direction,
         UUID activeTripId,
+        Instant tripStartedAt,
         Integer passengersOnBoard,
         Integer availableSeats
 ) {}

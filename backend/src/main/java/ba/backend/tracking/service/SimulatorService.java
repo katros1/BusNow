@@ -121,12 +121,21 @@ public class SimulatorService {
             );
         }
 
+        VehiclePositionEvent.StopInfo stopInfo = null;
+        if (loc.getCurrentStop() != null) {
+            stopInfo = new VehiclePositionEvent.StopInfo(
+                loc.getCurrentStop().getId(),
+                loc.getCurrentStop().getName(),
+                0
+            );
+        }
+
         return new VehiclePositionEvent(
             bus.getId(), bus.getPlateNumber(), bus.getGpsImei(),
             true, loc.getLatitude(), loc.getLongitude(),
             loc.getSpeedKmh(), loc.getHeadingDeg(),
             loc.getRecordedAt().toString(),
-            routeInfo, tripInfo
+            routeInfo, tripInfo, stopInfo
         );
     }
 }

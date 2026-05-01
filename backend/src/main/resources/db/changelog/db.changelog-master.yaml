@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-create-trip-table.sql
   - include:
       file: db/changelog/changes/007-add-location-history.sql
+  - include:
+      file: db/changelog/changes/008-add-stop-to-location.sql

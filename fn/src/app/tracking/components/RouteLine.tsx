@@ -6,6 +6,7 @@ import type { RouteDetailDto, VehiclePositionEvent } from "../api/tracking.types
 interface RouteLineProps {
   routeDetail: RouteDetailDto;
   liveEvent: VehiclePositionEvent | undefined;
+  hasActiveTrip: boolean;
   plateNumber: string;
 }
 
@@ -18,7 +19,7 @@ const BUS_SVG = (
   </svg>
 );
 
-export function RouteLine({ routeDetail, liveEvent, plateNumber }: RouteLineProps) {
+export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }: RouteLineProps) {
   const stops = useMemo(
     () => [...routeDetail.stops].sort((a, b) => a.sequence - b.sequence),
     [routeDetail.stops]
@@ -43,7 +44,7 @@ export function RouteLine({ routeDetail, liveEvent, plateNumber }: RouteLineProp
     return nearestStop(liveEvent.latitude, liveEvent.longitude, stops);
   }, [liveEvent, stops]);
 
-  const isActive = !!(liveEvent?.trip);
+  const isActive = hasActiveTrip;
   const busColor = isActive ? "#91D06C" : "#4C8CE4";
 
   return (

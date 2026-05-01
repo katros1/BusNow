@@ -1,10 +1,6 @@
 import { useState, useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, Bus, Navigation } from "lucide-react";
-import { trackingApi } from "../api/tracking.api";
-import { trackingKeys } from "../api/tracking.keys";
-import { nearestStop, formatDistance } from "../utils/geo";
+import { ChevronDown, ChevronUp, Bus } from "lucide-react";
 import type {
   TrackingVehicleDto,
   VehiclePositionEvent,
@@ -53,37 +49,6 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
     return `Route ${routeCode}`;
   }, [enrichedVehicles, routeCode]);
 
-  const routeIds = useMemo(() => {
-    const ids = new Set<string>();
-
-    for (const v of enrichedVehicles) {
-      const rid = v.liveRouteId ?? v.routeId;
-      if (rid) ids.add(rid);
-    }
-
-    return [...ids];
-  }, [enrichedVehicles]);
-
-  const routeQueries = useQueries({
-    queries: routeIds.map((rid) => ({
-      queryKey: trackingKeys.route(rid),
-      queryFn: () => trackingApi.getRouteDetail(rid),
-      enabled: expanded,
-      staleTime: 60_000,
-    })),
-  });
-
-  const routeStops = useMemo(() => {
-    const m = new Map<string, (typeof routeQueries)[0]["data"]>();
-
-    routeIds.forEach((rid, i) => {
-      const data = routeQueries[i]?.data;
-      if (data) m.set(rid, data);
-    });
-
-    return m;
-  }, [routeIds, routeQueries]);
-
   return (
     <div className="bg-card rounded-xl border border-border/60 overflow-hidden shadow-ambient">
       <button
@@ -117,9 +82,6 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
       {expanded && (
         <div className="border-t px-5 py-3 flex flex-wrap gap-3">
           {enrichedVehicles.map((v) => {
-            const routeId = v.liveRouteId ?? v.routeId;
-            const detail = routeId ? routeStops.get(routeId) : undefined;
-
             const speed =
               v.live?.speedKmh != null
                 ? Math.round(v.live.speedKmh)
@@ -127,14 +89,7 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
 
             const isActive = !!(v.live?.trip ?? v.activeTripId);
 
-            const nextStop =
-              detail?.stops && v.live?.latitude && v.live?.longitude
-                ? nearestStop(
-                    v.live.latitude,
-                    v.live.longitude,
-                    detail.stops
-                  )
-                : null;
+            const currentStop = v.live?.currentStop ?? null;
 
             return (
               <button
@@ -155,11 +110,9 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
                     {speed && <span>{speed} km/h</span>}
                   </div>
 
-                  {nextStop ? (
-                    <p className="text-xs">
-                      <Navigation className="inline w-3 h-3" />
-                      {nextStop.stop.name} ·{" "}
-                      {formatDistance(nextStop.distanceM)}
+                  {currentStop ? (
+                    <p className="text-xs text-[#91D06C] font-medium">
+                      ◉ At {currentStop.name}
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">

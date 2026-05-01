@@ -4,7 +4,6 @@ import ba.backend.tracking.websocket.LiveTrackingHandler;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
 import org.springframework.web.socket.server.support.WebSocketHttpRequestHandler;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
 
@@ -32,7 +31,8 @@ public class RawWebSocketConfig {
         WebSocketHttpRequestHandler handler = new WebSocketHttpRequestHandler(liveTrackingHandler);
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(Map.of("/ws/live", handler));
-        mapping.setOrder(Ordered.LOWEST_PRECEDENCE - 1);
+        // Order 2 = just after the STOMP handler mapping (order 1), well before static resources (Integer.MAX_VALUE-1)
+        mapping.setOrder(2);
         return mapping;
     }
 }

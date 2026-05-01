@@ -80,20 +80,27 @@ export function stopProgresses(
   });
 }
 
-/** Nearest stop to a bus position. */
-export function nearestStop(
-  lat: number, lon: number,
-  stops: StopShapeDto[]
+/**
+ * Find the next stop AHEAD of the bus along the route.
+ * "Ahead" means its route-progress is greater than the bus's current progress.
+ * Falls back to the closest stop if progress can't be determined.
+ */
+export function nextStopAhead(
+  busProgress: number,
+  busLat: number,
+  busLon: number,
+  stops: StopShapeDto[],
+  stopProgs: number[]
 ): { stop: StopShapeDto; distanceM: number } | null {
-  if (!stops.length) return null;
-  let best: StopShapeDto | null = null;
-  let bestDist = Infinity;
-  for (const stop of stops) {
-    const [sLat, sLon] = centroid(stop.coordinates);
-    const d = haversineM(lat, lon, sLat, sLon);
-    if (d < bestDist) { bestDist = d; best = stop; }
+  // Find first stop whose position along the route is in front of the bus
+  for (let i = 0; i < stops.length; i++) {
+    const prog = stopProgs[i] ?? 0;
+    if (prog > busProgress + 0.005) {          // 0.5% ahead threshold
+      const [sLat, sLon] = centroid(stops[i].coordinates);
+      return { stop: stops[i], distanceM: haversineM(busLat, busLon, sLat, sLon) };
+    }
   }
-  return best ? { stop: best, distanceM: bestDist } : null;
+  return null; // bus is past all stops → approaching end park
 }
 
 export function formatDistance(m: number): string {

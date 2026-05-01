@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { pathProgress, stopProgresses, nearestStop, formatDistance } from "../utils/geo";
+import { pathProgress, stopProgresses, nextStopAhead, formatDistance } from "../utils/geo";
 import type { RouteDetailDto, VehiclePositionEvent } from "../api/tracking.types";
 
 interface RouteLineProps {
@@ -40,9 +40,12 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
   }, [stops, path]);
 
   const nextStop = useMemo(() => {
-    if (!liveEvent?.latitude || !liveEvent?.longitude || !stops.length) return null;
-    return nearestStop(liveEvent.latitude, liveEvent.longitude, stops);
-  }, [liveEvent, stops]);
+    if (busProgress == null || !liveEvent?.latitude || !liveEvent?.longitude || !stops.length) return null;
+    return nextStopAhead(busProgress, liveEvent.latitude, liveEvent.longitude, stops, stopProgs);
+  }, [busProgress, liveEvent, stops, stopProgs]);
+
+  // True when bus is physically inside a stop or bus-park polygon
+  const isInsidePolygon = !!liveEvent?.currentStop || !hasActiveTrip;
 
   const isActive = hasActiveTrip;
   const busColor = isActive ? "#91D06C" : "#4C8CE4";
@@ -55,10 +58,24 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
           <p className="text-[12px] font-bold text-foreground truncate">
             {routeDetail.name}
           </p>
-          {nextStop ? (
+
+          {/* Priority: currentStop → no-active-trip terminal → next stop → approaching end → no gps */}
+          {liveEvent?.currentStop ? (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              <span className="font-semibold text-[#91D06C]">◉ At {liveEvent.currentStop.name}</span>
+            </p>
+          ) : !hasActiveTrip ? (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              <span className="font-semibold text-foreground">◉ At terminal · {routeDetail.startBusPark.name}</span>
+            </p>
+          ) : nextStop ? (
             <p className="text-[10px] text-muted-foreground mt-0.5">
               <span className="font-semibold text-foreground">→ {nextStop.stop.name}</span>
               <span className="ml-1.5">· {formatDistance(nextStop.distanceM)}</span>
+            </p>
+          ) : hasActiveTrip && busProgress != null ? (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              <span className="font-semibold text-foreground">→ Approaching {routeDetail.endBusPark.name}</span>
             </p>
           ) : (
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -68,11 +85,15 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {liveEvent?.speedKmh != null && liveEvent.gpsValid && (
+          {isInsidePolygon ? (
+            <span className="rounded-full bg-border/60 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+              Stopped
+            </span>
+          ) : liveEvent?.speedKmh != null && liveEvent.gpsValid ? (
             <span className="rounded-full bg-[#2E6B1A]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#2E6B1A]">
               {Math.round(liveEvent.speedKmh)} km/h
             </span>
-          )}
+          ) : null}
           {isActive ? (
             <span className="flex items-center gap-1 rounded-full bg-[#2E6B1A]/10 px-2.5 py-0.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#91D06C] pulse-live" />
@@ -116,6 +137,7 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
             const pct = `${(stopProgs[i] ?? 0) * 100}%`;
             const above = i % 2 === 1;
             const passed = busProgress != null && (stopProgs[i] ?? 0) < busProgress;
+            const isCurrent = liveEvent?.currentStop?.id === stop.id;
             return (
               <div
                 key={stop.id}
@@ -123,12 +145,17 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
                 style={{ left: pct, top: 24, transform: "translateX(-50%)" }}
               >
                 {/* Dot */}
-                <div
-                  className={cn(
-                    "h-[16px] w-[16px] rounded-full border-2 border-card transition-colors duration-500",
-                    passed ? "bg-primary" : "bg-border"
+                <div className="relative flex items-center justify-center">
+                  {isCurrent && (
+                    <span className="absolute inset-[-4px] rounded-full border-2 border-[#91D06C] opacity-60 pulse-live" />
                   )}
-                />
+                  <div
+                    className={cn(
+                      "h-[16px] w-[16px] rounded-full border-2 border-card transition-colors duration-500",
+                      isCurrent ? "bg-[#91D06C]" : passed ? "bg-primary" : "bg-border"
+                    )}
+                  />
+                </div>
                 {/* Label */}
                 <div
                   className="absolute whitespace-nowrap text-[8px] font-medium text-muted-foreground"

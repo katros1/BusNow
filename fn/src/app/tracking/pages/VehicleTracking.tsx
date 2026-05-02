@@ -221,7 +221,7 @@ export default function VehicleTracking() {
       </div>
 
       {/* ══ BOTTOM: Tabs ══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col overflow-hidden border-t border-border/50">
+      <div className="flex-1 flex flex-col overflow-hidden border-t border-border/50 mt-10">
         <Tabs
           value={tab}
           onValueChange={(v) => setTab(v as typeof tab)}

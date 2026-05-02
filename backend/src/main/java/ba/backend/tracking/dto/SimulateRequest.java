@@ -11,9 +11,9 @@ public record SimulateRequest(
         @NotNull  Double longitude,
         Double  speedKmh,
         Double  headingDeg,
-        int     passengersIn,
-        int     passengersOut,
-        int     passengersRemaining
+        Integer passengersIn,
+        Integer passengersOut,
+        Integer passengersRemaining
 ) {
     public VehiclePayload toPayload() {
         VehiclePayload.GpsData gps = new VehiclePayload.GpsData();
@@ -25,9 +25,9 @@ public record SimulateRequest(
         gps.setSatellites(8);
 
         VehiclePayload.Passengers pass = new VehiclePayload.Passengers();
-        pass.setIn(passengersIn);
-        pass.setOut(passengersOut);
-        pass.setRemaining(passengersRemaining);
+        pass.setIn(passengersIn != null ? passengersIn : 0);
+        pass.setOut(passengersOut != null ? passengersOut : 0);
+        pass.setRemaining(passengersRemaining != null ? passengersRemaining : 0);
 
         VehiclePayload.DeviceData device = new VehiclePayload.DeviceData();
         device.setId(deviceId);

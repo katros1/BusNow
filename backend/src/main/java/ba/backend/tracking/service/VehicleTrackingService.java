@@ -38,43 +38,43 @@ public class VehicleTrackingService {
     // ── Per-bus in-memory state ─────────────────────────────────────────────────
 
     private record BusTrackingState(
-            UUID inStartParkOfRouteId,
-            UUID inEndParkOfRouteId,
+            UUID inBusParkId,
             UUID activeTripId,
             Instant tripStartedAt,
             int tripSnapshotIn,
             int tripSnapshotOut,
             UUID activeRouteId,
+            UUID lastCompletedRouteId,
             UUID currentStopId,
             String currentStopName,
             Integer currentStopSequence) {
 
         static BusTrackingState empty() {
-            return new BusTrackingState(null, null, null, null, 0, 0, null, null, null, null);
+            return new BusTrackingState(null, null, null, 0, 0, null, null, null, null, null);
         }
 
-        BusTrackingState withGeofence(UUID startParkRouteId, UUID endParkRouteId) {
-            return new BusTrackingState(startParkRouteId, endParkRouteId,
+        BusTrackingState withGeofence(UUID busParkId) {
+            return new BusTrackingState(busParkId,
                     activeTripId, tripStartedAt, tripSnapshotIn, tripSnapshotOut, activeRouteId,
-                    currentStopId, currentStopName, currentStopSequence);
+                    lastCompletedRouteId, currentStopId, currentStopName, currentStopSequence);
         }
 
         BusTrackingState withActiveTrip(UUID tripId, Instant startedAt, int snapshotIn, int snapshotOut, UUID routeId) {
-            return new BusTrackingState(inStartParkOfRouteId, inEndParkOfRouteId,
+            return new BusTrackingState(inBusParkId,
                     tripId, startedAt, snapshotIn, snapshotOut, routeId,
-                    currentStopId, currentStopName, currentStopSequence);
+                    null, currentStopId, currentStopName, currentStopSequence);
         }
 
-        BusTrackingState withTripCleared() {
-            return new BusTrackingState(inStartParkOfRouteId, inEndParkOfRouteId,
+        BusTrackingState withTripCleared(UUID completedRouteId) {
+            return new BusTrackingState(inBusParkId,
                     null, null, 0, 0, null,
-                    null, null, null);
+                    completedRouteId, null, null, null);
         }
 
         BusTrackingState withCurrentStop(UUID stopId, String stopName, Integer stopSequence) {
-            return new BusTrackingState(inStartParkOfRouteId, inEndParkOfRouteId,
+            return new BusTrackingState(inBusParkId,
                     activeTripId, tripStartedAt, tripSnapshotIn, tripSnapshotOut, activeRouteId,
-                    stopId, stopName, stopSequence);
+                    lastCompletedRouteId, stopId, stopName, stopSequence);
         }
     }
 
@@ -144,67 +144,123 @@ public class VehicleTrackingService {
         Double lon = parseDoubleOrNull(gps.getLongitude());
         if (lat == null || lon == null) return;
 
-        // ── Previous state (from last frame) ────────────────────────────────────
+        // ── 0. Update state and position ────────────────────────────────────────
         BusTrackingState prevState = busStates.getOrDefault(bus.getId(), BusTrackingState.empty());
+        
+        // Immediately update position so that any checks use the most recent data
+        busRepository.updatePosition(bus.getId(), lat, lon);
+        bus.setCurrentLatitude(lat);
+        bus.setCurrentLongitude(lon);
 
         // ── 1. Bus-park geofence check ───────────────────────────────────────────
-        UUID nowInStartParkRouteId = null;
-        UUID nowInEndParkRouteId   = null;
+        UUID nowInBusParkId = null;
         for (RouteEntity route : routes) {
             try {
+                // If we are currently on an active trip, prioritize checking its specific destination
+                if (prevState.activeRouteId() != null && route.getId().equals(prevState.activeRouteId())) {
+                    if (route.getEndBusPark() != null && route.getEndBusPark().getPolygon() != null
+                            && geofenceService.contains(route.getEndBusPark().getPolygon(), lat, lon)) {
+                        nowInBusParkId = route.getEndBusPark().getId();
+                        log.debug("Bus {} reached DESTINATION terminal for current trip: {}", 
+                            bus.getPlateNumber(), route.getEndBusPark().getName());
+                        break; // High priority: we reached our actual destination
+                    }
+                }
+
+                // Check if it's a start park of ANY route
                 if (route.getStartBusPark() != null && route.getStartBusPark().getPolygon() != null
                         && geofenceService.contains(route.getStartBusPark().getPolygon(), lat, lon)) {
-                    nowInStartParkRouteId = route.getId();
+                    nowInBusParkId = route.getStartBusPark().getId();
                 }
-                if (route.getEndBusPark() != null && route.getEndBusPark().getPolygon() != null
+                
+                // Check if it's an end park of ANY route (only if start park not already found)
+                if (nowInBusParkId == null && route.getEndBusPark() != null && route.getEndBusPark().getPolygon() != null
                         && geofenceService.contains(route.getEndBusPark().getPolygon(), lat, lon)) {
-                    nowInEndParkRouteId = route.getId();
+                    nowInBusParkId = route.getEndBusPark().getId();
                 }
             } catch (Exception e) {
                 log.warn("Geofence check failed for route={}: {}", route.getId(), e.getMessage());
             }
         }
 
-        BusTrackingState state = prevState.withGeofence(nowInStartParkRouteId, nowInEndParkRouteId);
+        BusTrackingState state = prevState.withGeofence(nowInBusParkId);
 
-        // ── 2. Trip start: bus just left the start bus park ──────────────────────
-        if (prevState.inStartParkOfRouteId() != null
-                && nowInStartParkRouteId == null
-                && state.activeTripId() == null
-                && passengers != null) {
-            RouteEntity route = findById(routes, prevState.inStartParkOfRouteId());
-            if (route != null) {
-                TripEntity trip = tripService.startTrip(bus, route,
-                        passengers.getIn(), passengers.getOut(), passengers.getRemaining());
-                state = state.withActiveTrip(trip.getId(), trip.getStartedAt(),
-                        passengers.getIn(), passengers.getOut(), route.getId());
-                log.info("Trip STARTED: tripId={} bus={} route={}", trip.getId(), bus.getPlateNumber(), route.getName());
+        // ── 2. Trip start logic ──────────────────────────────────────────────────
+        if (state.activeTripId() == null) {
+            UUID parkLeftId = null;
+
+            if (prevState.inBusParkId() != null && nowInBusParkId == null) {
+                // Scenario A: Transitioned from inside to outside
+                parkLeftId = prevState.inBusParkId();
+            } else if (nowInBusParkId == null) {
+                // Scenario B: Proactive start (outside and no trip)
+                if (!routes.isEmpty()) {
+                    parkLeftId = routes.get(0).getStartBusPark().getId();
+                }
+            }
+
+            if (parkLeftId != null) {
+                final UUID finalParkLeftId = parkLeftId;
+                
+                // Intelligent Route Selection (FORWARD / BACKWARD toggle):
+                RouteEntity routeToStart = routes.stream()
+                        .filter(r -> r.getStartBusPark() != null && r.getStartBusPark().getId().equals(finalParkLeftId))
+                        .filter(r -> !r.getId().equals(prevState.lastCompletedRouteId()))
+                        .findFirst()
+                        .orElseGet(() -> routes.stream()
+                                .filter(r -> r.getStartBusPark() != null && r.getStartBusPark().getId().equals(finalParkLeftId))
+                                .findFirst()
+                                .orElse(!routes.isEmpty() ? routes.get(0) : null));
+
+                if (routeToStart != null) {
+                    int snapshotIn  = passengers != null ? passengers.getIn()  : 0;
+                    int snapshotOut = passengers != null ? passengers.getOut() : 0;
+                    
+                    try {
+                        TripEntity trip = tripService.startTrip(bus, routeToStart, snapshotIn, snapshotOut, 0);
+                        state = state.withActiveTrip(trip.getId(), trip.getStartedAt(),
+                                snapshotIn, snapshotOut, routeToStart.getId());
+                        log.info("Trip STARTED: bus={} route={} (dir={})", 
+                            bus.getPlateNumber(), routeToStart.getName(), routeToStart.getDirection());
+                    } catch (Exception e) {
+                        log.error("Failed to START trip for bus {}: {}", bus.getPlateNumber(), e.getMessage());
+                    }
+                }
             }
         }
 
-        // ── 3. Trip end: bus just entered the end bus park ───────────────────────
-        if (state.activeTripId() != null
-                && nowInEndParkRouteId != null
-                && prevState.inEndParkOfRouteId() == null) {
-            int finalIn  = passengers != null ? passengers.getIn()  : state.tripSnapshotIn();
-            int finalOut = passengers != null ? passengers.getOut() : state.tripSnapshotOut();
-            tripService.completeTrip(state.activeTripId(), finalIn, finalOut);
-            log.info("Trip COMPLETED: tripId={} bus={}", state.activeTripId(), bus.getPlateNumber());
-            state = state.withTripCleared();
+        // ── 3. Trip end logic ────────────────────────────────────────────────────
+        if (state.activeTripId() != null && nowInBusParkId != null) {
+            RouteEntity activeRoute = findById(routes, state.activeRouteId());
+            if (activeRoute != null && activeRoute.getEndBusPark() != null
+                    && activeRoute.getEndBusPark().getId().equals(nowInBusParkId)) {
+
+                int finalIn  = passengers != null ? passengers.getIn()  : state.tripSnapshotIn();
+                int finalOut = passengers != null ? passengers.getOut() : state.tripSnapshotOut();
+
+                tripService.completeTrip(state.activeTripId(), finalIn, finalOut);
+                log.info("Trip COMPLETED: bus={} route={} (dir={})", 
+                    bus.getPlateNumber(), activeRoute.getName(), activeRoute.getDirection());
+                state = state.withTripCleared(activeRoute.getId());
+            }
         }
 
-        // ── 4. Live passenger count ──────────────────────────────────────────────
+        // ── 4. Live passenger count calculation (CUMULATIVE DELTA) ───────────────
         if (state.activeTripId() != null && passengers != null) {
-            tripService.updatePassengersOnBoard(state.activeTripId(), passengers.getRemaining());
+            int currentTripIn  = Math.max(0, passengers.getIn() - state.tripSnapshotIn());
+            int currentTripOut = Math.max(0, passengers.getOut() - state.tripSnapshotOut());
+            int onBoard        = Math.max(0, currentTripIn - currentTripOut);
+            
+            tripService.updatePassengersOnBoard(state.activeTripId(), onBoard);
         }
 
         // ── 5. Stop geofence check ───────────────────────────────────────────────
         UUID nowAtStopId = null;
         String nowAtStopName = null;
         Integer nowAtStopSequence = null;
-        RouteEntity activeRoute = findById(routes, state.activeRouteId());
-        if (activeRoute != null) {
-            for (RouteStopEntity routeStop : activeRoute.getRouteStops()) {
+        RouteEntity activeRouteForStops = findById(routes, state.activeRouteId());
+        if (activeRouteForStops != null) {
+            for (RouteStopEntity routeStop : activeRouteForStops.getRouteStops()) {
                 StopEntity stop = routeStop.getStop();
                 try {
                     if (stop != null && stop.getGeo() != null
@@ -229,9 +285,8 @@ public class VehicleTrackingService {
 
         state = state.withCurrentStop(nowAtStopId, nowAtStopName, nowAtStopSequence);
 
-        // ── 6. Persist state and position ────────────────────────────────────────
+        // ── 6. Persist state and record position ─────────────────────────────────
         busStates.put(bus.getId(), state);
-        busRepository.updatePosition(bus.getId(), lat, lon);
 
         Instant recordedAt = parseRecordedAt(payload.getDevice().getTimestamp());
         locationService.record(bus.getId(), state.activeTripId(), nowAtStopId,
@@ -243,7 +298,7 @@ public class VehicleTrackingService {
 
         // ── 7. WebSocket broadcast ───────────────────────────────────────────────
         VehiclePositionEvent position = positionEvent(bus, deviceId, gps, passengers,
-                payload.getDevice().getTimestamp(), state, activeRoute, routes);
+                payload.getDevice().getTimestamp(), state, activeRouteForStops, routes);
         broadcast(bus.getId(), position);
     }
 
@@ -270,11 +325,17 @@ public class VehicleTrackingService {
             RouteEntity activeRoute, List<RouteEntity> allBusRoutes) {
 
         VehiclePositionEvent.TripInfo tripInfo = null;
-        if (state.activeTripId() != null && passengers != null) {
-            int tripIn  = Math.max(0, passengers.getIn()  - state.tripSnapshotIn());
-            int tripOut = Math.max(0, passengers.getOut() - state.tripSnapshotOut());
-            int onBoard = passengers.getRemaining();
+        if (state.activeTripId() != null) {
+            int currentIn  = passengers != null ? passengers.getIn()  : state.tripSnapshotIn();
+            int currentOut = passengers != null ? passengers.getOut() : state.tripSnapshotOut();
+            
+            // Calculate trip-specific counts
+            int tripIn  = Math.max(0, currentIn  - state.tripSnapshotIn());
+            int tripOut = Math.max(0, currentOut - state.tripSnapshotOut());
+            int onBoard = Math.max(0, tripIn - tripOut);
+            
             Integer available = bus.getCapacity() != null ? Math.max(0, bus.getCapacity() - onBoard) : null;
+
             tripInfo = new VehiclePositionEvent.TripInfo(
                     state.activeTripId(), TripStatus.ACTIVE, state.tripStartedAt(),
                     tripIn, tripOut, onBoard, available);
@@ -330,9 +391,13 @@ public class VehicleTrackingService {
     private Instant parseRecordedAt(String timestamp) {
         if (timestamp == null) return Instant.now();
         try {
-            return ZonedDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
+            return Instant.parse(timestamp);
         } catch (Exception e) {
-            return Instant.now();
+            try {
+                return ZonedDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();
+            } catch (Exception e2) {
+                return Instant.now();
+            }
         }
     }
 }

@@ -27,9 +27,28 @@ services:
     command: start-dev
     restart: always
     environment:
+      # Keycloak Admin (Using both styles for maximum compatibility)
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: dev-mem
+      
+      # Hostname and HTTP settings
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 1001
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_ADMIN: localhost
+      
+      # Database configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://iots-postgres:5432/iots_db
+      KC_DB_USERNAME: iots_user
+      KC_DB_PASSWORD: /iots_pass@1
+      KC_DB_SCHEMA: keycloak # Use a dedicated schema for Keycloak
+      
+      KC_LOG_LEVEL: INFO
     ports:
       - "1001:8080"
     depends_on:

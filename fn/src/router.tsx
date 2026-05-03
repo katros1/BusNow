@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   Outlet,
+  redirect,
 } from "@tanstack/react-router";
 import { DashboardLayout } from "./app/dashboard/layout";
 import Dashboard from "./app/dashboard";
@@ -12,15 +13,32 @@ import Stops from "./app/stops";
 import NewStop from "./app/stops/pages/NewStop";
 import Parks from "./app/parks";
 import NewPark from "./app/parks/pages/NewPark";
+import Login from "./app/auth/pages/Login";
 
 // ── Root ──────────────────────────────────────────────────────
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
-// ── Layout shell (pathless — wraps all pages) ──────────────────
+// ── Auth ──────────────────────────────────────────────────────
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: Login,
+});
+
+// ── Layout shell (protected — wraps dashboard pages) ──────────
 const layoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "layout",
   component: DashboardLayout,
+  beforeLoad: async ({ location }) => {
+    // We check localStorage directly for the 'beforeLoad' check 
+    // because useAuth is a hook and can't be used here easily.
+    // TanStack Router context could be used for a cleaner approach.
+    const user = localStorage.getItem("oidc.user:http://localhost:1001/realms/iots-realm:iots-client");
+    if (!user && location.pathname !== "/login") {
+      throw redirect({ to: "/login" });
+    }
+  },
 });
 
 // ── Pages ──────────────────────────────────────────────────────
@@ -120,6 +138,7 @@ const vehicleTrackingRoute = createRoute({
 
 // ── Route tree ─────────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
+  loginRoute,
   layoutRoute.addChildren([
     dashboardRoute,
     driversRoute,

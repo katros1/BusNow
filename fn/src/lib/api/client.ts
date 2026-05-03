@@ -17,13 +17,28 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
+  const userKey = "oidc.user:http://localhost:1001/realms/iots-realm:iots-client";
+  const userJson = localStorage.getItem(userKey);
+  const user = userJson ? JSON.parse(userJson) : null;
+  const token = user?.access_token;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
+    // If unauthorized, we might want to redirect to login, but for now just throw
     throw new ApiError(response.status, await response.text());
   }
 

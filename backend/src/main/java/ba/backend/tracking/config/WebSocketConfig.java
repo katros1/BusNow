@@ -18,7 +18,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/tracking").setAllowedOriginPatterns("*");
-        registry.addEndpoint("/ws/tracking-sockjs").setAllowedOriginPatterns("*").withSockJS();
+        registry.addEndpoint("/ws/tracking").setAllowedOrigins("http://localhost:5173");
+        registry.addEndpoint("/ws/tracking-sockjs").setAllowedOrigins("http://localhost:5173").withSockJS();
     }
 }

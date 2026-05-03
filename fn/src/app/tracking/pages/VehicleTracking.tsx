@@ -106,7 +106,12 @@ export default function VehicleTracking() {
   const gpsValid    = effectiveEvent?.gpsValid ?? false;
   const routeCode   = effectiveEvent?.route?.code ?? vehicle?.routeCode;
   const direction   = effectiveEvent?.route?.direction ?? vehicle?.direction;
-  const onBoard     = trip?.onBoard ?? vehicle?.passengersOnBoard ?? 0;
+  
+  // Real-time fix: strictly use live trip counts if a trip is active
+  const passengersIn  = trip ? trip.passengersIn : 0;
+  const passengersOut = trip ? trip.passengersOut : 0;
+  const onBoard       = trip ? trip.onBoard : (vehicle?.passengersOnBoard ?? 0);
+
   const capacity    = vehicle?.capacity;
   const occupancy   = capacity ? Math.round((onBoard / capacity) * 100) : null;
   const currentStop = effectiveEvent?.currentStop ?? null;

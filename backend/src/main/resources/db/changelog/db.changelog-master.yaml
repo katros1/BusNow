@@ -15,3 +15,7 @@ databaseChangeLog:
       file: db/changelog/changes/007-add-location-history.sql
   - include:
       file: db/changelog/changes/008-add-stop-to-location.sql
+  - include:
+      file: db/changelog/changes/009-create-vehicle-trips-history.sql
+  - include:
+      file: db/changelog/changes/010-add-last-route-to-bus.sql

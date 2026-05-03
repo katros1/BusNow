@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.util.UUID;
 
 @Entity
 @Table(name = "iots_bus")
@@ -40,7 +41,32 @@ public class BusEntity extends BaseEntity {
     @JoinColumn(name = "bus_route_code_id")
     private RouteCodeEntity routeCode;
 
+    @Column(name = "bus_last_completed_route_id")
+    private UUID lastCompletedRouteId;
+
     protected BusEntity() {
+    }
+
+    public BusEntity(
+            String plateNumber,
+            String gpsImei,
+            String model,
+            Integer capacity,
+            Double currentLatitude,
+            Double currentLongitude,
+            DriverEntity currentDriver,
+            RouteCodeEntity routeCode,
+            UUID lastCompletedRouteId
+    ) {
+        this.plateNumber = plateNumber;
+        this.gpsImei = gpsImei;
+        this.model = model;
+        this.capacity = capacity;
+        this.currentLatitude = currentLatitude;
+        this.currentLongitude = currentLongitude;
+        this.currentDriver = currentDriver;
+        this.routeCode = routeCode;
+        this.lastCompletedRouteId = lastCompletedRouteId;
     }
 
     public BusEntity(
@@ -53,14 +79,7 @@ public class BusEntity extends BaseEntity {
             DriverEntity currentDriver,
             RouteCodeEntity routeCode
     ) {
-        this.plateNumber = plateNumber;
-        this.gpsImei = gpsImei;
-        this.model = model;
-        this.capacity = capacity;
-        this.currentLatitude = currentLatitude;
-        this.currentLongitude = currentLongitude;
-        this.currentDriver = currentDriver;
-        this.routeCode = routeCode;
+        this(plateNumber, gpsImei, model, capacity, currentLatitude, currentLongitude, currentDriver, routeCode, null);
     }
 
     public String getPlateNumber() {
@@ -95,6 +114,10 @@ public class BusEntity extends BaseEntity {
         return routeCode;
     }
 
+    public UUID getLastCompletedRouteId() {
+        return lastCompletedRouteId;
+    }
+
     public void setPlateNumber(String plateNumber) {
         this.plateNumber = plateNumber;
     }
@@ -125,5 +148,9 @@ public class BusEntity extends BaseEntity {
 
     public void setRouteCode(RouteCodeEntity routeCode) {
         this.routeCode = routeCode;
+    }
+
+    public void setLastCompletedRouteId(UUID lastCompletedRouteId) {
+        this.lastCompletedRouteId = lastCompletedRouteId;
     }
 }

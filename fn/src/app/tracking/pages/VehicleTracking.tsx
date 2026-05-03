@@ -367,8 +367,8 @@ export default function VehicleTracking() {
                     <div className="grid grid-cols-3 gap-3">
                       {([
                         { icon: Users,       value: onBoard,          label: "On Board",  sublabel: "Currently",  color: "text-primary",         bg: "bg-primary/8" },
-                        { icon: TrendingUp,  value: trip.passengersIn,  label: "Boarded",  sublabel: "This trip",  color: "text-[#2E6B1A]",       bg: "bg-[#2E6B1A]/8" },
-                        { icon: TrendingDown,value: trip.passengersOut, label: "Alighted", sublabel: "This trip",  color: "text-muted-foreground", bg: "bg-muted" },
+                        { icon: TrendingUp,  value: passengersIn,     label: "Boarded",  sublabel: "This trip",  color: "text-[#2E6B1A]",       bg: "bg-[#2E6B1A]/8" },
+                        { icon: TrendingDown,value: passengersOut,    label: "Alighted", sublabel: "This trip",  color: "text-muted-foreground", bg: "bg-muted" },
                       ] as const).map(({ icon: Icon, value, label, sublabel, color, bg }) => (
                         <div key={label}
                           className="rounded-xl border border-border/60 bg-card px-4 py-4 flex flex-col items-center gap-1">

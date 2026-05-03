@@ -229,10 +229,10 @@ public class VehicleTrackingService {
         if (state.activeTripId() != null && nowInBusParkId != null) {
             RouteEntity activeRoute = findById(routes, state.activeRouteId());
             
-            // Log for debugging
-            log.debug("Bus {} with active trip {} in park {}. Checking if terminal matches route end {}...", 
+            // Increased visibility for debugging
+            log.info("Bus {} (active trip {}) in park {}. Checking if terminal matches route end {}...", 
                 bus.getPlateNumber(), state.activeTripId(), nowInBusParkId, 
-                activeRoute != null ? activeRoute.getEndBusPark().getId() : "NULL");
+                activeRoute != null && activeRoute.getEndBusPark() != null ? activeRoute.getEndBusPark().getId() : "NONE");
 
             if (activeRoute != null && activeRoute.getEndBusPark() != null
                     && activeRoute.getEndBusPark().getId().equals(nowInBusParkId)) {

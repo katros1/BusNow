@@ -3,7 +3,7 @@ import { UserManager, User, WebStorageStateStore } from "oidc-client-ts";
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const keycloakConfig = {
-  authority: "http://localhost:1001/realms/iots-realm",
+  authority: "http://localhost:1001/realms/iots-client",
   client_id: "iots-client",
   redirect_uri: window.location.origin + "/",
   post_logout_redirect_uri: window.location.origin + "/login",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Bus, Lock, User, AlertCircle } from "lucide-react";
@@ -14,10 +14,13 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Redirect if already logged in
-  if (isAuthenticated) {
-    navigate({ to: "/" });
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: "/" });
+    }
+  }, [isAuthenticated, navigate]);
+
+  if (isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

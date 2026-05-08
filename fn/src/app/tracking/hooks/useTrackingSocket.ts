@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth/AuthContext";
 import type { VehiclePositionEvent } from "../api/tracking.types";
 
-function buildWsUrl(): string {
+function buildWsUrl(token?: string): string {
   const api =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8087/api/v1";
   return api
     .replace(/\/api\/v1\/?$/, "")
     .replace(/^http/, "ws")
-    .concat("/ws/live");
+    .concat("/ws/live") + (token ? `?token=${token}` : "");
 }
 
 const DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000];
@@ -22,6 +23,8 @@ export function useTrackingSocket(): TrackingSocketState {
     new Map()
   );
   const [connected, setConnected] = useState(false);
+  const { user } = useAuth();
+  const token = user?.access_token;
 
   const wsRef   = useRef<WebSocket | null>(null);
   const retries = useRef(0);
@@ -31,7 +34,7 @@ export function useTrackingSocket(): TrackingSocketState {
   const connect = useCallback(() => {
     if (!alive.current) return;
     try {
-      const ws = new WebSocket(buildWsUrl());
+      const ws = new WebSocket(buildWsUrl(token));
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -57,7 +60,7 @@ export function useTrackingSocket(): TrackingSocketState {
 
       ws.onerror = () => ws.close();
     } catch { /* invalid URL */ }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     alive.current = true;

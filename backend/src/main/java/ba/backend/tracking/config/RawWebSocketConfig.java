@@ -2,36 +2,40 @@ package ba.backend.tracking.config;
 
 import ba.backend.tracking.websocket.LiveTrackingHandler;
 import java.util.Map;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.server.support.WebSocketHttpRequestHandler;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.cors.CorsConfiguration;
 
-/**
- * Registers /ws/live as a raw (non-STOMP) WebSocket endpoint.
- *
- * @EnableWebSocket is intentionally NOT used here — it would create a second
- * "webSocketHandlerMapping" bean that conflicts with the one produced by
- * @EnableWebSocketMessageBroker in WebSocketConfig, silently dropping one of the
- * two handler registrations.  Instead we define a uniquely-named HandlerMapping
- * bean alongside the existing HttpRequestHandlerAdapter (auto-registered by
- * Spring MVC) to avoid any naming collision.
- */
 @Configuration
 public class RawWebSocketConfig {
 
     private final LiveTrackingHandler liveTrackingHandler;
+    private final AuthHandshakeInterceptor authHandshakeInterceptor;
 
-    public RawWebSocketConfig(LiveTrackingHandler liveTrackingHandler) {
+    public RawWebSocketConfig(LiveTrackingHandler liveTrackingHandler, AuthHandshakeInterceptor authHandshakeInterceptor) {
         this.liveTrackingHandler = liveTrackingHandler;
+        this.authHandshakeInterceptor = authHandshakeInterceptor;
     }
 
     @Bean
     public SimpleUrlHandlerMapping rawWsHandlerMapping() {
         WebSocketHttpRequestHandler handler = new WebSocketHttpRequestHandler(liveTrackingHandler);
+        handler.setHandshakeInterceptors(List.of(authHandshakeInterceptor));
+        
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(Map.of("/ws/live", handler));
-        // Order 2 = just after the STOMP handler mapping (order 1), well before static resources (Integer.MAX_VALUE-1)
+        
+        // Setup CORS for the raw WebSocket handshake
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        mapping.setCorsConfigurations(Map.of("/ws/live", config));
+        
         mapping.setOrder(2);
         return mapping;
     }

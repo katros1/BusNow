@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 // ── Nav structure ─────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (to: string) =>
@@ -273,6 +275,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 <Settings className="h-3.5 w-3.5" />
               </button>
               <button
+                onClick={logout}
                 aria-label="Sign out"
                 className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-error-container hover:text-error transition-colors"
               >

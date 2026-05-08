@@ -1,15 +1,31 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { UserManager, User, WebStorageStateStore } from "oidc-client-ts";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
+import {
+  UserManager,
+  User,
+  WebStorageStateStore,
+  type UserManagerSettings,
+} from "oidc-client-ts";
 
 // ── Configuration ────────────────────────────────────────────────────────────
-const keycloakConfig = {
+const keycloakConfig: UserManagerSettings = {
   authority: "http://localhost:1001/realms/iots-client",
   client_id: "iots-client",
   redirect_uri: window.location.origin + "/",
   post_logout_redirect_uri: window.location.origin + "/login",
   response_type: "code",
-  scope: "openid profile email",
+  scope: "openid profile email offline_access", // Added offline_access for refresh tokens
   userStore: new WebStorageStateStore({ store: window.localStorage }),
+  automaticSilentRenew: true, // Enable automatic token renewal
+  validateIdTokenByIssuer: true,
+  includeIdTokenInSilentRenew: true,
+  staleStateAgeInSeconds: 300,
 };
 
 const userManager = new UserManager(keycloakConfig);
@@ -28,35 +44,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      // 1. Clear local user state in userManager
+      await userManager.removeUser();
+      // 2. Update local react state
+      setUser(null);
+      // 3. Clear session storage/local storage related to OIDC
+      userManager.clearStaleState();
+      // 4. Redirect to login
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      window.location.href = "/login";
+    }
+  }, []);
+
   useEffect(() => {
+    // Initial user load
     userManager.getUser().then((u) => {
-      setUser(u);
+      if (u && !u.expired) {
+        setUser(u);
+      } else if (u && u.expired) {
+        handleLogout();
+      }
       setIsLoading(false);
     });
 
-    const onUserLoaded = (u: User) => setUser(u);
-    const onUserUnloaded = () => setUser(null);
+    // Events
+    const onUserLoaded = (u: User) => {
+      console.log("User loaded:", u.profile.preferred_username);
+      setUser(u);
+    };
+
+    const onUserUnloaded = () => {
+      console.log("User unloaded");
+      setUser(null);
+    };
+
+    const onAccessTokenExpiring = () => {
+      console.log("Token expiring soon...");
+      // userManager.signinSilent() is usually triggered automatically by automaticSilentRenew: true
+    };
+
+    const onAccessTokenExpired = () => {
+      console.log("Token expired. Logging out...");
+      handleLogout();
+    };
+
+    const onSilentRenewError = (err: Error) => {
+      console.error("Silent renew error:", err);
+      handleLogout();
+    };
 
     userManager.events.addUserLoaded(onUserLoaded);
     userManager.events.addUserUnloaded(onUserUnloaded);
+    userManager.events.addAccessTokenExpiring(onAccessTokenExpiring);
+    userManager.events.addAccessTokenExpired(onAccessTokenExpired);
+    userManager.events.addSilentRenewError(onSilentRenewError);
 
     return () => {
       userManager.events.removeUserLoaded(onUserLoaded);
       userManager.events.removeUserUnloaded(onUserUnloaded);
+      userManager.events.removeAccessTokenExpiring(onAccessTokenExpiring);
+      userManager.events.removeAccessTokenExpired(onAccessTokenExpired);
+      userManager.events.removeSilentRenewError(onSilentRenewError);
     };
-  }, []);
+  }, [handleLogout]);
 
   const login = async (username: string, password: string) => {
-    // Manual Direct Access Grant (Password Flow)
-    // NOTE: Direct Access Grant must be enabled in Keycloak client settings
     const tokenUrl = `${keycloakConfig.authority}/protocol/openid-connect/token`;
-    
+
     const params = new URLSearchParams();
     params.append("grant_type", "password");
-    params.append("client_id", keycloakConfig.client_id);
+    params.append("client_id", keycloakConfig.client_id!);
     params.append("username", username);
     params.append("password", password);
-    params.append("scope", keycloakConfig.scope);
+    params.append("scope", keycloakConfig.scope!);
 
     const response = await fetch(tokenUrl, {
       method: "POST",
@@ -65,21 +129,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error_description || "Login failed");
+      const errorData = await response.json();
+      throw new Error(errorData.error_description || "Login failed");
     }
 
     const tokenResponse = await response.json();
-    
-    // Create a User object from the response and store it
-    // We use userManager to keep things in sync
+
     const newUser = new User({
       id_token: tokenResponse.id_token,
       access_token: tokenResponse.access_token,
       refresh_token: tokenResponse.refresh_token,
       token_type: tokenResponse.token_type,
       scope: tokenResponse.scope,
-      profile: {}, // Usually decoded from id_token, but simplified here
+      profile: {}, // In a real app, decode this from id_token
       expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in,
     });
 
@@ -87,20 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   };
 
-  const logout = async () => {
-    await userManager.removeUser();
-    setUser(null);
-    window.location.href = "/login";
-  };
-
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isLoading, 
-      isAuthenticated: !!user && !user.expired,
-      login, 
-      logout 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user && !user.expired,
+        login,
+        logout: handleLogout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,76 +1,71 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Client } from "@stomp/stompjs";
 import { useAuth } from "@/lib/auth/AuthContext";
-import type { VehiclePositionEvent } from "../api/tracking.types";
+import type { VehicleLiveSnapshot } from "../api/tracking.types";
 
-function buildWsUrl(token?: string): string {
-  const api =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8087/api/v1";
-  return api
+function buildStompUrl(): string {
+  return (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8087/api/v1")
     .replace(/\/api\/v1\/?$/, "")
     .replace(/^http/, "ws")
-    .concat("/ws/live") + (token ? `?token=${token}` : "");
+    .concat("/ws/tracking");
 }
 
-const DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000];
-
 export interface TrackingSocketState {
-  vehicles: Map<string, VehiclePositionEvent>;
+  vehicles: Map<string, VehicleLiveSnapshot>;
   connected: boolean;
 }
 
-export function useTrackingSocket(): TrackingSocketState {
-  const [vehicles, setVehicles] = useState<Map<string, VehiclePositionEvent>>(
-    new Map()
-  );
+/**
+ * Subscribes to /topic/tracking/route/{id} for every routeId supplied.
+ * Re-connects (and re-subscribes) whenever the sorted route set changes.
+ */
+export function useTrackingSocket(routeIds: string[]): TrackingSocketState {
+  const [vehicles, setVehicles] = useState<Map<string, VehicleLiveSnapshot>>(new Map());
   const [connected, setConnected] = useState(false);
   const { user } = useAuth();
   const token = user?.access_token;
 
-  const wsRef   = useRef<WebSocket | null>(null);
-  const retries = useRef(0);
-  const alive   = useRef(true);
-  const timer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stable key — only reconnect when the actual route set changes
+  const routeKey = [...routeIds].sort().join(",");
 
-  const connect = useCallback(() => {
-    if (!alive.current) return;
-    try {
-      const ws = new WebSocket(buildWsUrl(token));
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (!alive.current) { ws.close(); return; }
-        setConnected(true);
-        retries.current = 0;
-      };
-
-      ws.onmessage = ({ data }) => {
-        if (!alive.current) return;
-        try {
-          const evt = JSON.parse(data as string) as VehiclePositionEvent;
-          setVehicles((prev) => new Map(prev).set(evt.busId, evt));
-        } catch { /* skip malformed frame */ }
-      };
-
-      ws.onclose = () => {
-        if (!alive.current) return;
-        setConnected(false);
-        const delay = DELAYS[Math.min(retries.current++, DELAYS.length - 1)];
-        timer.current = setTimeout(connect, delay);
-      };
-
-      ws.onerror = () => ws.close();
-    } catch { /* invalid URL */ }
-  }, [token]);
+  // Keep a ref so onConnect closure always sees current routeIds
+  const routeIdsRef = useRef(routeIds);
+  useEffect(() => { routeIdsRef.current = routeIds; });
 
   useEffect(() => {
-    alive.current = true;
-    connect();
-    return () => {
-      alive.current = false;
-      if (timer.current) clearTimeout(timer.current);
-      wsRef.current?.close();
+    if (!routeKey) return;
+
+    const push = (msg: { body: string }) => {
+      try {
+        const snap = JSON.parse(msg.body) as VehicleLiveSnapshot;
+        setVehicles((prev) => new Map(prev).set(snap.busId, snap));
+      } catch { /* skip malformed frame */ }
     };
-  }, [connect]);
+
+    const client = new Client({
+      brokerURL: buildStompUrl(),
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      reconnectDelay: 5_000,
+      onConnect: () => {
+        setConnected(true);
+        // Receive initial snapshots pushed back per-subscribe request
+        client.subscribe("/user/queue/tracking", push);
+        for (const id of routeIdsRef.current) {
+          client.subscribe(`/topic/tracking/route/${id}`, push);
+          client.publish({
+            destination: "/app/tracking/subscribe",
+            body: JSON.stringify({ routeId: id }),
+          });
+        }
+      },
+      onDisconnect: () => setConnected(false),
+      onStompError:  () => setConnected(false),
+    });
+
+    client.activate();
+    return () => { client.deactivate(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey, token]);
 
   return { vehicles, connected };
 }

@@ -2,7 +2,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, Tooltip, useMap } from "react-leaflet";
 import { useEffect } from "react";
-import type { RouteDetailDto, VehiclePositionEvent } from "../api/tracking.types";
+import type { RouteDetailDto, VehicleLiveSnapshot } from "../api/tracking.types";
 import { centroid } from "../utils/geo";
 
 const ESRI_TILE =
@@ -77,7 +77,7 @@ function RouteFitter({ path }: { path: [number, number][] }) {
 interface TrackingMapTabProps {
   mode: "satellite" | "plain";
   routeDetail: RouteDetailDto | undefined;
-  liveEvent: VehiclePositionEvent | undefined;
+  liveEvent: VehicleLiveSnapshot | undefined;
   plateNumber: string;
   height: string;
 }
@@ -162,7 +162,7 @@ export function TrackingMapTab({
       {markerPos && (
         <Marker
           position={markerPos}
-          icon={makeVehicleIcon(!!(liveEvent?.trip), liveEvent?.headingDeg)}
+          icon={makeVehicleIcon(liveEvent?.tripId != null, liveEvent?.headingDeg)}
         >
           <Tooltip direction="top" offset={[0, -20]} opacity={1}>
             <div style={{ fontFamily: "Inter,sans-serif" }}>
@@ -172,9 +172,9 @@ export function TrackingMapTab({
                   {Math.round(liveEvent.speedKmh)} km/h
                 </div>
               )}
-              {liveEvent?.trip && (
+              {liveEvent?.tripId != null && (
                 <div style={{ fontSize: 10, color: "#2E6B1A", fontWeight: 600 }}>
-                  {liveEvent.trip.onBoard} pax on board
+                  {liveEvent.passengersOnBoard} pax on board
                 </div>
               )}
             </div>

@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { pathProgress, stopProgresses, nextStopAhead, formatDistance } from "../utils/geo";
-import type { RouteDetailDto, VehiclePositionEvent } from "../api/tracking.types";
+import type { RouteDetailDto, VehicleLiveSnapshot } from "../api/tracking.types";
 
 interface RouteLineProps {
   routeDetail: RouteDetailDto;
-  liveEvent: VehiclePositionEvent | undefined;
+  liveEvent: VehicleLiveSnapshot | undefined;
   hasActiveTrip: boolean;
   plateNumber: string;
 }
@@ -45,7 +45,7 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
   }, [busProgress, liveEvent, stops, stopProgs]);
 
   // True when bus is physically inside a stop or bus-park polygon
-  const isInsidePolygon = !!liveEvent?.currentStop || !hasActiveTrip;
+  const isInsidePolygon = !!liveEvent?.currentStopName || !hasActiveTrip;
 
   const isActive = hasActiveTrip;
   const busColor = isActive ? "#91D06C" : "#4C8CE4";
@@ -60,9 +60,9 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
           </p>
 
           {/* Priority: currentStop → no-active-trip terminal → next stop → approaching end → no gps */}
-          {liveEvent?.currentStop ? (
+          {liveEvent?.currentStopName ? (
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              <span className="font-semibold text-[#91D06C]">◉ At {liveEvent.currentStop.name}</span>
+              <span className="font-semibold text-[#91D06C]">◉ At {liveEvent.currentStopName}</span>
             </p>
           ) : !hasActiveTrip ? (
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -137,7 +137,7 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip, plateNumber }
             const pct = `${(stopProgs[i] ?? 0) * 100}%`;
             const above = i % 2 === 1;
             const passed = busProgress != null && (stopProgs[i] ?? 0) < busProgress;
-            const isCurrent = liveEvent?.currentStop?.id === stop.id;
+            const isCurrent = liveEvent?.currentStopName === stop.name;
             return (
               <div
                 key={stop.id}

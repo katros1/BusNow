@@ -7,6 +7,7 @@ import ba.backend.tracking.repository.VehicleLocationRepository;
 import ba.backend.trip.repository.TripRepository;
 import java.time.Instant;
 import java.util.UUID;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class VehicleLocationService {
         this.stopRepository     = stopRepository;
     }
 
+    @Async
     @Transactional
     public void record(UUID busId, UUID tripId, UUID stopId,
                        double latitude, double longitude,

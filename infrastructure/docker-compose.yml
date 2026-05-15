@@ -21,6 +21,20 @@ services:
       timeout: 5s
       retries: 5
 
+  iots-redis:
+    image: redis:7-alpine
+    container_name: iots_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - iots_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   iots-keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: iots-keycloak
@@ -49,3 +63,5 @@ services:
 volumes:
   iots_postgres_data:
     name: iots_postgres_data
+  iots_redis_data:
+    name: iots_redis_data

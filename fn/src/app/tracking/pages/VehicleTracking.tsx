@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { trackingApi } from "../api/tracking.api";
 import { trackingKeys } from "../api/tracking.keys";
-import { useTrackingSocket } from "../hooks/useTrackingSocket";
+import { useVehicleSocket } from "../hooks/useVehicleSocket";
 import { RouteLine } from "../components/RouteLine";
 import { TrackingMapTab } from "../components/TrackingMapTab";
-import type { VehiclePositionEvent } from "../api/tracking.types";
+import type { VehicleLiveSnapshot } from "../api/tracking.types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const NAVBAR_H = 60;
@@ -22,9 +22,9 @@ const TABBAR_H = 44;
 const MAP_H    = `calc(100vh - ${NAVBAR_H + LINE_H + TABBAR_H}px)`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function tripDuration(startedAt: string | null | undefined): string {
-  if (!startedAt) return "—";
-  const s = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+function tripDuration(timestamp: string | null | undefined): string {
+  if (!timestamp) return "—";
+  const s = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -62,63 +62,49 @@ export default function VehicleTracking() {
   );
 
   // ── Live WebSocket updates ────────────────────────────────────────────────
-  const { vehicles: liveMap, connected } = useTrackingSocket();
-  const liveEvent = liveMap.get(busId);
+  const { snapshot: liveSnapshot, connected } = useVehicleSocket(
+    vehicle?.plateNumber,
+    vehicle?.routeId
+  );
 
-  // ── Synthetic "effective event" — merges WS live data with REST fallback ──
-  // When WS is down or no frame has arrived yet, construct a position event
-  // from the REST snapshot so the UI always has something to render.
-  const effectiveEvent = useMemo((): VehiclePositionEvent | undefined => {
-    if (liveEvent) return liveEvent;
+  // ── Synthetic "effective snapshot" — merges WS live data with REST fallback
+  const effectiveSnapshot = useMemo((): VehicleLiveSnapshot | undefined => {
+    if (liveSnapshot) return liveSnapshot;
     if (!vehicle) return undefined;
-    const hasPosition = vehicle.latitude != null && vehicle.longitude != null;
     return {
-      busId:      vehicle.busId,
-      plateNumber: vehicle.plateNumber,
-      deviceId:   "",
-      gpsValid:   hasPosition,
-      latitude:   vehicle.latitude,
-      longitude:  vehicle.longitude,
-      speedKmh:   null,
-      headingDeg: null,
-      timestamp:  new Date().toISOString(),
-      route: vehicle.routeId ? {
-        id:        vehicle.routeId,
-        name:      vehicle.routeName,
-        code:      vehicle.routeCode,
-        direction: vehicle.direction,
-      } : null,
-      trip: vehicle.activeTripId ? {
-        id:             vehicle.activeTripId,
-        status:         "ACTIVE",
-        startedAt:      vehicle.tripStartedAt ?? new Date().toISOString(),
-        passengersIn:   0,
-        passengersOut:  0,
-        onBoard:        vehicle.passengersOnBoard ?? 0,
-        availableSeats: vehicle.availableSeats ?? null,
-      } : null,
-      currentStop: null,
+      busId:            vehicle.busId,
+      plateNumber:      vehicle.plateNumber,
+      routeId:          vehicle.routeId ?? null,
+      routeCode:        vehicle.routeCode ?? null,
+      routeName:        vehicle.routeName ?? null,
+      latitude:         vehicle.latitude ?? null,
+      longitude:        vehicle.longitude ?? null,
+      speedKmh:         null,
+      headingDeg:       null,
+      gpsValid:         vehicle.latitude != null && vehicle.longitude != null,
+      gpsStale:         false,
+      currentStopName:  null,
+      nextStopName:     null,
+      passengersOnBoard: vehicle.passengersOnBoard ?? 0,
+      availableSeats:   vehicle.availableSeats ?? null,
+      tripId:           vehicle.activeTripId ?? null,
+      timestamp:        new Date().toISOString(),
     };
-  }, [liveEvent, vehicle]);
+  }, [liveSnapshot, vehicle]);
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const trip        = effectiveEvent?.trip  ?? null;
-  const gpsValid    = effectiveEvent?.gpsValid ?? false;
-  const routeCode   = effectiveEvent?.route?.code ?? vehicle?.routeCode;
-  const direction   = effectiveEvent?.route?.direction ?? vehicle?.direction;
-  
-  // Real-time fix: strictly use live trip counts if a trip is active
-  const passengersIn  = trip ? trip.passengersIn : 0;
-  const passengersOut = trip ? trip.passengersOut : 0;
-  const onBoard       = trip ? trip.onBoard : (vehicle?.passengersOnBoard ?? 0);
-
+  const hasTrip     = effectiveSnapshot?.tripId != null;
+  const gpsValid    = effectiveSnapshot?.gpsValid ?? false;
+  const gpsStale    = effectiveSnapshot?.gpsStale ?? false;
+  const routeCode   = effectiveSnapshot?.routeCode ?? vehicle?.routeCode;
+  const direction   = vehicle?.direction;
+  const onBoard     = effectiveSnapshot?.passengersOnBoard ?? 0;
   const capacity    = vehicle?.capacity;
   const occupancy   = capacity ? Math.round((onBoard / capacity) * 100) : null;
-  const currentStop = effectiveEvent?.currentStop ?? null;
-  const isLiveData  = !!liveEvent;
+  const isLiveData  = !!liveSnapshot;
 
-  // Route ID: follow live event first (handles 302F→302R flip automatically)
-  const routeId = effectiveEvent?.route?.id ?? vehicle?.routeId ?? null;
+  // Route ID follows live event (handles FORWARD→BACKWARD toggle automatically)
+  const routeId = effectiveSnapshot?.routeId ?? vehicle?.routeId ?? null;
 
   const { data: routeDetail } = useQuery({
     queryKey: trackingKeys.route(routeId ?? ""),
@@ -180,7 +166,13 @@ export default function VehicleTracking() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {effectiveEvent && !gpsValid && (
+            {gpsStale && (
+              <span className="flex items-center gap-1 rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5">
+                <AlertTriangle className="h-3 w-3 text-orange-600" />
+                <span className="text-[9px] font-bold text-orange-700">GPS Stale</span>
+              </span>
+            )}
+            {effectiveSnapshot && !gpsValid && !gpsStale && (
               <span className="flex items-center gap-1 rounded-full bg-yellow-50 border border-yellow-200 px-2 py-0.5">
                 <AlertTriangle className="h-3 w-3 text-yellow-600" />
                 <span className="text-[9px] font-bold text-yellow-700">No GPS</span>
@@ -204,8 +196,8 @@ export default function VehicleTracking() {
         {routeDetail ? (
           <RouteLine
             routeDetail={routeDetail}
-            liveEvent={effectiveEvent}
-            hasActiveTrip={!!trip}
+            liveEvent={effectiveSnapshot}
+            hasActiveTrip={hasTrip}
             plateNumber={vehicle?.plateNumber ?? ""}
           />
         ) : (
@@ -264,24 +256,27 @@ export default function VehicleTracking() {
           <TabsContent value="passengers" className="flex-1 overflow-y-auto bg-background m-0">
             <div className="max-w-2xl mx-auto w-full p-5 space-y-3">
 
-              {/* Current stop banner — shown whenever bus is inside a stop polygon */}
-              {currentStop && (
+              {/* Current stop banner */}
+              {effectiveSnapshot?.currentStopName && (
                 <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
                     <MapPin className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary/70">At stop</p>
-                    <p className="text-[13px] font-bold text-foreground truncate">{currentStop.name}</p>
+                    <p className="text-[13px] font-bold text-foreground truncate">{effectiveSnapshot.currentStopName}</p>
                   </div>
-                  <span className="shrink-0 text-[10px] font-bold text-muted-foreground bg-muted rounded px-2 py-0.5">
-                    #{currentStop.sequence}
-                  </span>
+                  {effectiveSnapshot.nextStopName && (
+                    <div className="shrink-0 text-right">
+                      <p className="text-[9px] text-muted-foreground">Next</p>
+                      <p className="text-[10px] font-semibold text-foreground">{effectiveSnapshot.nextStopName}</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* No trip state */}
-              {!trip && (
+              {!hasTrip && (
                 <div className="flex flex-col items-center gap-3 rounded-xl border border-border/60 bg-card py-10 text-muted-foreground">
                   <Clock className="h-8 w-8 opacity-20" />
                   <div className="text-center">
@@ -295,7 +290,7 @@ export default function VehicleTracking() {
                 </div>
               )}
 
-              {trip && (
+              {hasTrip && (
                 <>
                   {/* Trip header */}
                   <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-5 py-4">
@@ -322,7 +317,7 @@ export default function VehicleTracking() {
                       )}
                       <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {tripDuration(trip.startedAt)}
+                        {tripDuration(effectiveSnapshot?.timestamp)}
                       </span>
                     </div>
                   </div>
@@ -352,8 +347,8 @@ export default function VehicleTracking() {
                       </div>
                       <p className="text-[11px] text-muted-foreground text-center">
                         <span className="font-bold text-foreground">{onBoard}</span> on board
-                        {trip.availableSeats != null && (
-                          <> · <span className="font-bold text-foreground">{trip.availableSeats}</span> available</>
+                        {effectiveSnapshot?.availableSeats != null && (
+                          <> · <span className="font-bold text-foreground">{effectiveSnapshot.availableSeats}</span> available</>
                         )}
                         {capacity && (
                           <> · <span className="font-bold text-foreground">{capacity}</span> capacity</>
@@ -362,13 +357,12 @@ export default function VehicleTracking() {
                     </div>
                   )}
 
-                  {/* Passenger stats — only when we have live delta counts */}
-                  {isLiveData && (
-                    <div className="grid grid-cols-3 gap-3">
+                  {/* Live passenger stats */}
+                  {isLiveData && liveSnapshot && (
+                    <div className="grid grid-cols-2 gap-3">
                       {([
-                        { icon: Users,       value: onBoard,          label: "On Board",  sublabel: "Currently",  color: "text-primary",         bg: "bg-primary/8" },
-                        { icon: TrendingUp,  value: passengersIn,     label: "Boarded",  sublabel: "This trip",  color: "text-[#2E6B1A]",       bg: "bg-[#2E6B1A]/8" },
-                        { icon: TrendingDown,value: passengersOut,    label: "Alighted", sublabel: "This trip",  color: "text-muted-foreground", bg: "bg-muted" },
+                        { icon: Users,        value: liveSnapshot.passengersOnBoard, label: "On Board",  sublabel: "Currently",  color: "text-primary",         bg: "bg-primary/8" },
+                        { icon: TrendingDown, value: liveSnapshot.availableSeats ?? 0, label: "Available", sublabel: "Seats free", color: "text-[#2E6B1A]", bg: "bg-[#2E6B1A]/8" },
                       ] as const).map(({ icon: Icon, value, label, sublabel, color, bg }) => (
                         <div key={label}
                           className="rounded-xl border border-border/60 bg-card px-4 py-4 flex flex-col items-center gap-1">
@@ -383,7 +377,18 @@ export default function VehicleTracking() {
                     </div>
                   )}
 
-                  {/* On-board count when only REST data is available */}
+                  {/* Next stop info — only when live */}
+                  {isLiveData && liveSnapshot?.nextStopName && !liveSnapshot.currentStopName && (
+                    <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
+                      <Navigation className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">Next stop</p>
+                        <p className="text-[13px] font-bold text-foreground">{liveSnapshot.nextStopName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* REST-only on-board count */}
                   {!isLiveData && (
                     <div className="rounded-xl border border-border/60 bg-card px-5 py-4 flex items-center gap-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
@@ -393,9 +398,9 @@ export default function VehicleTracking() {
                         <p className="text-[24px] font-bold text-foreground leading-none">{onBoard}</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">passengers on board</p>
                       </div>
-                      {trip.availableSeats != null && (
+                      {effectiveSnapshot?.availableSeats != null && (
                         <div className="ml-auto text-right">
-                          <p className="text-[18px] font-bold text-[#2E6B1A] leading-none">{trip.availableSeats}</p>
+                          <p className="text-[18px] font-bold text-[#2E6B1A] leading-none">{effectiveSnapshot.availableSeats}</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">available</p>
                         </div>
                       )}
@@ -416,19 +421,19 @@ export default function VehicleTracking() {
                             {vehicle.model ?? "Unknown model"}{capacity ? ` · ${capacity} seats` : ""}
                           </p>
                         </div>
-                        {effectiveEvent?.speedKmh != null && gpsValid && (
+                        {effectiveSnapshot?.speedKmh != null && gpsValid && (
                           <div className="ml-auto rounded-xl bg-surface-container/60 px-3 py-2 text-center">
                             <p className="text-[18px] font-bold text-foreground leading-none">
-                              {Math.round(effectiveEvent.speedKmh)}
+                              {Math.round(effectiveSnapshot.speedKmh)}
                             </p>
                             <p className="text-[9px] text-muted-foreground mt-0.5">km/h</p>
                           </div>
                         )}
-                        {effectiveEvent?.headingDeg != null && gpsValid && (
+                        {effectiveSnapshot?.headingDeg != null && gpsValid && (
                           <div className="rounded-xl bg-muted/60 px-3 py-2 text-center">
                             <Navigation
                               className="h-4 w-4 text-muted-foreground mx-auto"
-                              style={{ transform: `rotate(${effectiveEvent.headingDeg}deg)` }}
+                              style={{ transform: `rotate(${effectiveSnapshot.headingDeg}deg)` }}
                             />
                             <p className="text-[9px] text-muted-foreground mt-0.5">heading</p>
                           </div>
@@ -446,7 +451,7 @@ export default function VehicleTracking() {
             <TrackingMapTab
               mode="satellite"
               routeDetail={routeDetail}
-              liveEvent={effectiveEvent}
+              liveEvent={effectiveSnapshot}
               plateNumber={vehicle?.plateNumber ?? ""}
               height={MAP_H}
             />
@@ -457,7 +462,7 @@ export default function VehicleTracking() {
             <TrackingMapTab
               mode="plain"
               routeDetail={routeDetail}
-              liveEvent={effectiveEvent}
+              liveEvent={effectiveSnapshot}
               plateNumber={vehicle?.plateNumber ?? ""}
               height={MAP_H}
             />

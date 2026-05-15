@@ -1,15 +1,12 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, Bus } from "lucide-react";
-import type {
-  TrackingVehicleDto,
-  VehiclePositionEvent,
-} from "../api/tracking.types";
+import type { TrackingVehicleDto, VehicleLiveSnapshot } from "../api/tracking.types";
 
 interface RouteGroupProps {
   routeCode: string;
   vehicles: TrackingVehicleDto[];
-  liveMap: Map<string, VehiclePositionEvent>;
+  liveMap: Map<string, VehicleLiveSnapshot>;
 }
 
 export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
@@ -18,35 +15,18 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
 
   const enrichedVehicles = useMemo(() => {
     if (!Array.isArray(vehicles)) return [];
-
-    return vehicles.map((v) => {
-      const live = liveMap.get(v.busId);
-
-      return {
-        ...v,
-        live,
-        liveRouteName: live?.route?.name ?? null,
-        liveRouteId: live?.route?.id ?? null,
-      };
-    });
+    return vehicles.map((v) => ({ ...v, live: liveMap.get(v.busId) ?? null }));
   }, [vehicles, liveMap]);
 
   const activeCount = enrichedVehicles.filter(
-    (v) => v.live?.trip ?? v.activeTripId
+    (v) => v.live?.tripId != null || v.activeTripId
   ).length;
 
   const routeName = useMemo(() => {
-    if (enrichedVehicles.length === 0) {
-      return `Route ${routeCode}`;
-    }
-
-    const dbRoute = enrichedVehicles.find((v) => v.routeName);
-    if (dbRoute?.routeName) return dbRoute.routeName;
-
-    const liveRoute = enrichedVehicles.find((v) => v.liveRouteName);
-    if (liveRoute?.liveRouteName) return liveRoute.liveRouteName;
-
-    return `Route ${routeCode}`;
+    const fromLive = enrichedVehicles.find((v) => v.live?.routeName)?.live?.routeName;
+    if (fromLive) return fromLive;
+    const fromDb = enrichedVehicles.find((v) => v.routeName)?.routeName;
+    return fromDb ?? `Route ${routeCode}`;
   }, [enrichedVehicles, routeCode]);
 
   return (
@@ -82,42 +62,26 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
       {expanded && (
         <div className="border-t px-5 py-3 flex flex-wrap gap-3">
           {enrichedVehicles.map((v) => {
-            const speed =
-              v.live?.speedKmh != null
-                ? Math.round(v.live.speedKmh)
-                : null;
-
-            const isActive = !!(v.live?.trip ?? v.activeTripId);
-
-            const currentStop = v.live?.currentStop ?? null;
+            const speed = v.live?.speedKmh != null ? Math.round(v.live.speedKmh) : null;
+            const isActive = !!(v.live?.tripId ?? v.activeTripId);
+            const currentStopName = v.live?.currentStopName ?? null;
 
             return (
               <button
                 key={v.busId}
-                onClick={() =>
-                  navigate({
-                    to: "/tracking/$busId",
-                    params: { busId: v.busId },
-                  })
-                }
+                onClick={() => navigate({ to: "/tracking/$busId", params: { busId: v.busId } })}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl border hover:shadow-md"
               >
                 <Bus />
-
                 <div className="flex-1">
                   <div className="flex gap-2 items-center">
                     <span className="font-bold">{v.plateNumber}</span>
-                    {speed && <span>{speed} km/h</span>}
+                    {speed != null && <span>{speed} km/h</span>}
                   </div>
-
-                  {currentStop ? (
-                    <p className="text-xs text-[#91D06C] font-medium">
-                      ◉ At {currentStop.name}
-                    </p>
+                  {currentStopName ? (
+                    <p className="text-xs text-[#91D06C] font-medium">◉ At {currentStopName}</p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {isActive ? "Active" : "Idle"}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{isActive ? "Active" : "Idle"}</p>
                   )}
                 </div>
               </button>

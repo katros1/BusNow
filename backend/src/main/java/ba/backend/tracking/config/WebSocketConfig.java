@@ -6,19 +6,32 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+/**
+ * STOMP WebSocket configuration.
+ *
+ * Connect:    ws://host/ws/tracking
+ * Subscribe:  /topic/tracking/route/{routeId}   – all buses on a route
+ *             /topic/tracking/vehicle/{plate}    – one specific bus
+ *             /user/queue/tracking               – initial snapshot on subscribe
+ * Send:       /app/tracking/subscribe            – register subscription + receive initial state
+ */
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        registry.enableSimpleBroker("/topic", "/queue");
         registry.setApplicationDestinationPrefixes("/app");
+        registry.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/tracking").setAllowedOrigins("http://localhost:5173");
-        registry.addEndpoint("/ws/tracking-sockjs").setAllowedOrigins("http://localhost:5173").withSockJS();
+        registry.addEndpoint("/ws/tracking")
+                .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws/tracking-sockjs")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 }

@@ -15,7 +15,13 @@ export default function TrackingOverview() {
     staleTime: 10_000,
   });
 
-  const { vehicles: liveMap, connected } = useTrackingSocket();
+  // Unique route IDs — drives STOMP subscriptions
+  const routeIds = useMemo(
+    () => [...new Set(initialVehicles.map((v) => v.routeId).filter(Boolean) as string[])],
+    [initialVehicles]
+  );
+
+  const { vehicles: liveMap, connected } = useTrackingSocket(routeIds);
 
   // Group vehicles by routeCode (fall back to "Unassigned" bucket)
   const groups = useMemo(() => {
@@ -26,7 +32,6 @@ export default function TrackingOverview() {
       arr.push(v);
       map.set(key, arr);
     }
-    // Sort: keyed groups first (have route), then unassigned
     return [...map.entries()].sort(([a], [b]) => {
       if (a === "__none__") return 1;
       if (b === "__none__") return -1;
@@ -36,7 +41,9 @@ export default function TrackingOverview() {
 
   const totalActive = useMemo(
     () =>
-      initialVehicles.filter((v) => liveMap.get(v.busId)?.trip ?? v.activeTripId).length,
+      initialVehicles.filter(
+        (v) => liveMap.get(v.busId)?.tripId != null || v.activeTripId
+      ).length,
     [initialVehicles, liveMap]
   );
 
@@ -53,7 +60,8 @@ export default function TrackingOverview() {
               Live by Route
             </h1>
             <p className="text-[11px] text-muted-foreground">
-              {totalActive} active trip{totalActive !== 1 ? "s" : ""} across {groups.filter(([k]) => k !== "__none__").length} route{groups.filter(([k]) => k !== "__none__").length !== 1 ? "s" : ""}
+              {totalActive} active trip{totalActive !== 1 ? "s" : ""} across{" "}
+              {groups.filter(([k]) => k !== "__none__").length} route{groups.filter(([k]) => k !== "__none__").length !== 1 ? "s" : ""}
             </p>
           </div>
         </div>

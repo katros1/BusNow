@@ -1,3 +1,25 @@
+/** Flat snapshot published by the new Redis/STOMP pipeline. */
+export interface VehicleLiveSnapshot {
+  busId: string;
+  plateNumber: string;
+  routeId: string | null;
+  routeCode: string | null;
+  routeName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  speedKmh: number | null;
+  headingDeg: number | null;
+  gpsValid: boolean;
+  gpsStale: boolean;
+  currentStopName: string | null;
+  nextStopName: string | null;
+  passengersOnBoard: number;
+  availableSeats: number | null;
+  tripId: string | null;
+  timestamp: string;
+}
+
+/** @deprecated legacy nested shape — kept for reference only */
 export interface VehiclePositionEvent {
   busId: string;
   plateNumber: string;

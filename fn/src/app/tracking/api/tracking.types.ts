@@ -1,4 +1,4 @@
-/** Flat snapshot published by the new Redis/STOMP pipeline. */
+/** Flat snapshot published by the Redis → WebSocket pipeline. */
 export interface VehicleLiveSnapshot {
   busId: string;
   plateNumber: string;
@@ -13,6 +13,9 @@ export interface VehicleLiveSnapshot {
   gpsStale: boolean;
   currentStopName: string | null;
   nextStopName: string | null;
+  distanceToNextStopM: number | null;   // metres along route to next stop
+  distanceToTerminalM: number | null;   // metres along route to end terminal
+  progressPercent: number | null;       // 0–100, position along the route
   passengersOnBoard: number;
   availableSeats: number | null;
   tripId: string | null;

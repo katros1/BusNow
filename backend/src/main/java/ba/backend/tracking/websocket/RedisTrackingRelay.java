@@ -8,50 +8,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Bridges Redis pub/sub → STOMP WebSocket.
+ * Bridges Redis pub/sub → raw WebSocket sessions.
  *
- * Listens on the Redis pattern {@code tracking:*} and forwards each message
- * to the matching STOMP topic so every subscribed WebSocket client receives it:
+ * Listens on {@code tracking:*} and for each vehicle-channel message
+ * pushes the snapshot to all WebSocket sessions subscribed to that plate.
  *
- *   Redis  tracking:route:{routeId}       → STOMP /topic/tracking/route/{routeId}
- *   Redis  tracking:vehicle:{plateNumber} → STOMP /topic/tracking/vehicle/{plateNumber}
+ * Route-level channels (tracking:route:*) are intentionally ignored —
+ * the frontend subscribes per-plate for stability across direction toggles.
  */
 @Component
 public class RedisTrackingRelay implements MessageListener {
 
     private static final Logger log = LoggerFactory.getLogger(RedisTrackingRelay.class);
 
-    private final SimpMessagingTemplate stomp;
-    private final ObjectMapper          objectMapper;
+    private final TrackingWebSocketHandler wsHandler;
+    private final ObjectMapper             objectMapper;
 
-    public RedisTrackingRelay(SimpMessagingTemplate stomp, ObjectMapper objectMapper) {
-        this.stomp        = stomp;
+    public RedisTrackingRelay(TrackingWebSocketHandler wsHandler, ObjectMapper objectMapper) {
+        this.wsHandler    = wsHandler;
         this.objectMapper = objectMapper;
     }
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
         String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
-        String json    = new String(message.getBody(),    StandardCharsets.UTF_8);
+
+        if (!TrackingChannels.isVehicleChannel(channel)) return;
 
         try {
+            String              json     = new String(message.getBody(), StandardCharsets.UTF_8);
             VehicleLiveSnapshot snapshot = objectMapper.readValue(json, VehicleLiveSnapshot.class);
-
-            if (TrackingChannels.isRouteChannel(channel)) {
-                String routeId = TrackingChannels.extractRouteId(channel);
-                stomp.convertAndSend(TrackingChannels.routeTopic(routeId), snapshot);
-
-            } else if (TrackingChannels.isVehicleChannel(channel)) {
-                String plate = TrackingChannels.extractPlate(channel);
-                stomp.convertAndSend(TrackingChannels.vehicleTopic(plate), snapshot);
-            }
-
+            String              plate    = TrackingChannels.extractPlate(channel);
+            wsHandler.pushToPlate(plate, snapshot);
         } catch (Exception e) {
-            log.error("Failed to relay tracking message from channel {}: {}", channel, e.getMessage());
+            log.error("Failed to relay tracking message from {}: {}", channel, e.getMessage());
         }
     }
 }

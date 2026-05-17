@@ -1,37 +1,38 @@
 package ba.backend.tracking.config;
 
+import ba.backend.tracking.websocket.TrackingWebSocketHandler;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 /**
- * STOMP WebSocket configuration.
+ * Raw WebSocket endpoint — no STOMP, no SockJS.
  *
- * Connect:    ws://host/ws/tracking
- * Subscribe:  /topic/tracking/route/{routeId}   – all buses on a route
- *             /topic/tracking/vehicle/{plate}    – one specific bus
- *             /user/queue/tracking               – initial snapshot on subscribe
- * Send:       /app/tracking/subscribe            – register subscription + receive initial state
+ * Connect:  ws://host/ws/tracking
+ *
+ * Client → Server JSON frames:
+ *   { "type": "subscribe", "plates": ["ABC-123", ...] }
+ *   { "type": "ping" }
+ *
+ * Server → Client JSON frames:
+ *   { "type": "connected" }
+ *   { "type": "snapshot", "data": { ...VehicleLiveSnapshot } }
+ *   { "type": "pong" }
  */
 @Configuration
-@EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
 
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic", "/queue");
-        registry.setApplicationDestinationPrefixes("/app");
-        registry.setUserDestinationPrefix("/user");
+    private final TrackingWebSocketHandler handler;
+
+    public WebSocketConfig(TrackingWebSocketHandler handler) {
+        this.handler = handler;
     }
 
     @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/tracking")
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(handler, "/ws/tracking")
                 .setAllowedOriginPatterns("*");
-        registry.addEndpoint("/ws/tracking-sockjs")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
     }
 }

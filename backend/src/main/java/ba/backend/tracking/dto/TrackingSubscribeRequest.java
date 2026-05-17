@@ -20,5 +20,5 @@ public record TrackingSubscribeRequest(
         String  boardingStopId,
         String  destinationStopId,
         String  plateNumber,
-        boolean continueTracking
+        Boolean continueTracking
 ) {}

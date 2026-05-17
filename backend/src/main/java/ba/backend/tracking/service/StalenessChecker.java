@@ -38,6 +38,8 @@ public class StalenessChecker {
             if (state.lastSnapshot() == null || state.lastSeenAt() == null) return;
             if (state.lastSeenAt().isBefore(threshold) && !state.lastSnapshot().gpsStale()) {
                 VehicleLiveSnapshot stale = staleVersion(state.lastSnapshot());
+                // Update in-memory state so reconnecting clients also receive the stale flag
+                ingestService.markStale(busId, stale);
                 publisher.publish(stale);
                 log.debug("GPS stale for bus {}, broadcasting stale snapshot", state.lastSnapshot().plateNumber());
             }
@@ -50,6 +52,7 @@ public class StalenessChecker {
                 s.latitude(), s.longitude(), s.speedKmh(), s.headingDeg(),
                 s.gpsValid(), true,
                 s.currentStopName(), s.nextStopName(),
+                s.distanceToNextStopM(), s.distanceToTerminalM(), s.progressPercent(),
                 s.passengersOnBoard(), s.availableSeats(),
                 s.tripId(), Instant.now());
     }

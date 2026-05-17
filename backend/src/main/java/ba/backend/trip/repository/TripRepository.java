@@ -14,7 +14,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface TripRepository extends JpaRepository<TripEntity, UUID>, JpaSpecificationExecutor<TripEntity> {
 
     @EntityGraph(attributePaths = {"bus", "route", "route.startBusPark", "route.endBusPark", "route.routeCode"})
-    Optional<TripEntity> findByBusIdAndStatus(UUID busId, TripStatus status);
+    Optional<TripEntity> findFirstByBusIdAndStatusOrderByStartedAtDesc(UUID busId, TripStatus status);
+
+    List<TripEntity> findAllByBusIdAndStatus(UUID busId, TripStatus status);
 
     @EntityGraph(attributePaths = {"bus", "route", "route.routeCode"})
     List<TripEntity> findByStatus(TripStatus status);

@@ -57,6 +57,10 @@ public class VehicleTripEntity extends BaseEntity {
         this.onBoard = onBoard;
     }
 
+    public BusEntity getBus()       { return bus; }
+    public TripStatus getStatus()   { return status; }
+    public Instant getStartedAt()   { return startedAt; }
+
     public void complete(Instant endedAt, int passengersIn, int passengersOut, int onBoard) {
         this.status = TripStatus.COMPLETED;
         this.endedAt = endedAt;

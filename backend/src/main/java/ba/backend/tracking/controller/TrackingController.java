@@ -65,14 +65,9 @@ public class TrackingController {
                     ? Math.max(0, bus.getCapacity() - trip.getPassengersOnBoard())
                     : null;
         } else if (bus.getRouteCode() != null) {
+            // No active trip → routeId/routeName null so the frontend shows "No route assigned".
+            // routeCode is still populated for the header chip.
             routeCode = bus.getRouteCode().getCode();
-            List<RouteEntity> busRoutes = routeRepository.findByRouteCodeId(bus.getRouteCode().getId());
-            if (!busRoutes.isEmpty()) {
-                RouteEntity fallback = busRoutes.get(0);
-                routeId   = fallback.getId();
-                routeName = fallback.getName();
-                direction = fallback.getDirection() != null ? fallback.getDirection().name() : null;
-            }
         }
 
         return new TrackingVehicleDto(
@@ -81,4 +76,5 @@ public class TrackingController {
                 routeId, routeName, routeCode, direction,
                 activeTripId, tripStartedAt, passengersOnBoard, availableSeats);
     }
+
 }

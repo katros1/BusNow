@@ -2,7 +2,6 @@ package ba.backend.tracking.service;
 
 import ba.backend.bus.entity.BusEntity;
 import ba.backend.bus.repository.BusRepository;
-import ba.backend.route.entity.RouteDirection;
 import ba.backend.route.entity.RouteEntity;
 import ba.backend.route.repository.RouteRepository;
 import ba.backend.tracking.dto.VehicleLiveSnapshot;
@@ -126,10 +125,20 @@ public class GpsIngestService {
         busRepository.updatePosition(bus.getId(), lat, lon);
 
         // ── Trip lifecycle ────────────────────────────────────────────────────
+        // Compute progress early so handleTripCompletion can use it as a fallback
+        // when the terminal geofence fails (e.g. swapped polygon coordinates in DB).
+        Double earlyProgress = null;
+        if (state.activeTripId() != null) {
+            RouteEntity ar = findActiveRoute(state, routes);
+            if (ar != null && ar.getGeo() != null) {
+                earlyProgress = GeoUtils.progressPercent(ar.getGeo(), lat, lon);
+            }
+        }
+
         UUID nowInParkId = parkGeofenceCheck(lat, lon, state, routes);
         state = state.withGeofence(nowInParkId);
-        state = handleTripCompletion(state, nowInParkId, pax, bus, routes);
-        state = handleTripStart(state, nowInParkId, pax, bus, routes);
+        state = handleTripCompletion(state, nowInParkId, earlyProgress, pax, bus, routes);
+        state = handleTripStart(state, lat, lon, pax, bus, routes);
 
         // ── Passengers ───────────────────────────────────────────────────────
         int onBoard = calculateOnBoard(state, pax);
@@ -161,115 +170,88 @@ public class GpsIngestService {
         return Collections.unmodifiableMap(busStates);
     }
 
+    /** Called by StalenessChecker so reconnecting clients also see the stale flag. */
+    public void markStale(UUID busId, VehicleLiveSnapshot staleSnap) {
+        busStates.computeIfPresent(busId, (id, state) -> state.withSeen(state.lastSeenAt(), staleSnap));
+    }
+
     // ── Trip lifecycle helpers ────────────────────────────────────────────────
 
-    private BusState handleTripCompletion(BusState state, UUID nowInParkId,
+    private BusState handleTripCompletion(BusState state, UUID nowInParkId, Double progressPercent,
             VehiclePayload.Passengers pax, BusEntity bus, List<RouteEntity> routes) {
-        if (state.activeTripId() == null || nowInParkId == null) return state;
+        if (state.activeTripId() == null) return state;
 
         RouteEntity activeRoute = findActiveRoute(state, routes);
         if (activeRoute == null || activeRoute.getEndBusPark() == null) return state;
-        if (!nowInParkId.equals(activeRoute.getEndBusPark().getId())) return state;
+
+        // Primary: bus entered the end-park geofence
+        boolean atEndPark = nowInParkId != null
+                && nowInParkId.equals(activeRoute.getEndBusPark().getId());
+        // Fallback: route progress >= 99 % (geofence unreliable due to swapped polygon coords)
+        boolean progressDone = progressPercent != null && progressPercent >= 99.0;
+
+        if (!atEndPark && !progressDone) return state;
 
         int finalIn  = pax != null ? pax.getIn()  : state.snapshotIn();
         int finalOut = pax != null ? pax.getOut() : state.snapshotOut();
         tripService.completeTrip(state.activeTripId(), finalIn, finalOut);
-        log.info("Trip {} completed — bus {} arrived at terminal", state.activeTripId(), bus.getPlateNumber());
+        log.info("Trip {} completed — bus {} at terminal (geofence={}, progress={}) ",
+                state.activeTripId(), bus.getPlateNumber(), atEndPark,
+                progressPercent != null ? String.format("%.1f%%", progressPercent) : "n/a");
         return state.withTripCleared(activeRoute.getId());
     }
 
-    private BusState handleTripStart(BusState state, UUID nowInParkId,
+    /**
+     * Starts a trip for the first route whose start terminal the bus is near.
+     *
+     * Detection uses progressPercent <= START_THRESHOLD_PCT on the route geometry —
+     * the same geometry that drives the 99 % completion trigger.  This is more robust
+     * than a fixed-radius proximity check on pts[0] because:
+     *   • it tolerates the route LineString starting a few hundred metres before the
+     *     physical terminal building (common in Kigali road data), and
+     *   • it works correctly regardless of whether the LineString is oriented
+     *     start→end or end→start (the 0 % end is always the start terminal).
+     *
+     * 5 % ≈ 750 m on a 15 km route — generous enough to cover any terminal offset
+     * while still far from the midpoint of the route.
+     */
+    private static final double START_THRESHOLD_PCT = 5.0;
+
+    private BusState handleTripStart(BusState state, double lat, double lon,
             VehiclePayload.Passengers pax, BusEntity bus, List<RouteEntity> routes) {
         if (state.activeTripId() != null || routes.isEmpty()) return state;
 
-        UUID parkJustLeft = resolveDepartedPark(state, nowInParkId, routes);
-        if (parkJustLeft == null) return state;
+        for (RouteEntity r : routes) {
+            if (r.getGeo() == null) continue;
+            double progress = GeoUtils.progressPercent(r.getGeo(), lat, lon);
+            if (progress > START_THRESHOLD_PCT) continue;
 
-        RouteEntity toStart = pickRouteFromPark(parkJustLeft, state.lastCompletedRouteId(), routes);
-        if (toStart == null) return state;
-
-        int snapIn  = pax != null ? pax.getIn()  : 0;
-        int snapOut = pax != null ? pax.getOut() : 0;
-        try {
-            TripEntity trip = tripService.startTrip(bus, toStart, snapIn, snapOut, 0);
-            log.info("Trip {} started — bus {} → route {}", trip.getId(), bus.getPlateNumber(), toStart.getName());
-            return state.withTrip(trip.getId(), toStart.getId(), snapIn, snapOut);
-        } catch (Exception e) {
-            log.error("Failed to start trip for bus {}: {}", bus.getPlateNumber(), e.getMessage());
-            return state;
-        }
-    }
-
-    private UUID resolveDepartedPark(BusState state, UUID nowInParkId, List<RouteEntity> routes) {
-        // Bus was in a park and just left (or moved to a different park)
-        if (state.inBusParkId() != null
-                && (nowInParkId == null || !nowInParkId.equals(state.inBusParkId()))) {
-            return state.inBusParkId();
-        }
-        // Cold-start fallback: outside any park, determine likely origin
-        if (nowInParkId == null) {
-            if (state.lastCompletedRouteId() != null) {
-                RouteEntity last = routes.stream()
-                        .filter(r -> r.getId().equals(state.lastCompletedRouteId()))
-                        .findFirst().orElse(null);
-                if (last != null && last.getEndBusPark() != null) return last.getEndBusPark().getId();
-            }
-            if (!routes.isEmpty() && routes.get(0).getStartBusPark() != null) {
-                return routes.get(0).getStartBusPark().getId();
+            int snapIn  = pax != null ? pax.getIn()  : 0;
+            int snapOut = pax != null ? pax.getOut() : 0;
+            try {
+                TripEntity trip = tripService.startTrip(bus, r, snapIn, snapOut, 0);
+                log.info("Trip {} started — bus {} at start of route {} (progress={})%",
+                        trip.getId(), bus.getPlateNumber(), r.getName(),
+                        String.format("%.1f", progress));
+                return state.withTrip(trip.getId(), r.getId(), snapIn, snapOut);
+            } catch (Exception e) {
+                log.error("Failed to start trip for bus {}: {}", bus.getPlateNumber(), e.getMessage());
             }
         }
-        return null;
-    }
-
-    /**
-     * Picks the next route to start when a bus departs {@code fromParkId}.
-     *
-     * <p>Strategy (in priority order):
-     * <ol>
-     *   <li>Direction toggle – if last route was FORWARD pick BACKWARD and vice versa,
-     *       provided it starts from {@code fromParkId}.</li>
-     *   <li>Exclusion fallback – any route from {@code fromParkId} that is NOT the last completed one.</li>
-     *   <li>Last resort – any route starting from {@code fromParkId}.</li>
-     * </ol>
-     */
-    private RouteEntity pickRouteFromPark(UUID fromParkId, UUID lastCompletedRouteId,
-            List<RouteEntity> routes) {
-
-        // 1. Direction-aware toggle
-        if (lastCompletedRouteId != null) {
-            RouteDirection lastDir = routes.stream()
-                    .filter(r -> r.getId().equals(lastCompletedRouteId))
-                    .map(RouteEntity::getDirection)
-                    .findFirst().orElse(null);
-
-            if (lastDir != null) {
-                RouteDirection nextDir = lastDir == RouteDirection.FORWARD
-                        ? RouteDirection.BACKWARD : RouteDirection.FORWARD;
-                RouteEntity byDir = routes.stream()
-                        .filter(r -> r.getDirection() == nextDir
-                                && r.getStartBusPark() != null
-                                && r.getStartBusPark().getId().equals(fromParkId))
-                        .findFirst().orElse(null);
-                if (byDir != null) return byDir;
-            }
-        }
-
-        // 2. Exclusion fallback (any route from this park except the last one)
-        return routes.stream()
-                .filter(r -> r.getStartBusPark() != null && r.getStartBusPark().getId().equals(fromParkId))
-                .filter(r -> !r.getId().equals(lastCompletedRouteId))
-                .findFirst()
-                // 3. Last resort – same park even if it was the last completed
-                .orElseGet(() -> routes.stream()
-                        .filter(r -> r.getStartBusPark() != null
-                                && r.getStartBusPark().getId().equals(fromParkId))
-                        .findFirst().orElse(null));
+        return state;
     }
 
     // ── Geofence helper ───────────────────────────────────────────────────────
 
+    /**
+     * Threshold used for route-endpoint proximity fallback.
+     * A GPS fix within this radius of a route's first/last vertex is considered
+     * "at the bus park" even when the polygon geofence fails (e.g. swapped coordinates in DB).
+     */
+    private static final double PARK_RADIUS_M = 250.0;
+
     private UUID parkGeofenceCheck(double lat, double lon, BusState state, List<RouteEntity> routes) {
-        // Check active trip's end park first (higher priority)
+        // ── Primary: polygon containment (works when DB coordinates are correct) ──
         if (state.activeRouteId() != null) {
             RouteEntity active = findActiveRoute(state, routes);
             if (active != null && active.getEndBusPark() != null
@@ -293,6 +275,29 @@ public class GpsIngestService {
                 }
             } catch (Exception ignored) {}
         }
+
+        // ── Fallback: proximity to route LineString endpoints ─────────────────────
+        // Used when polygon geofence fails (e.g. coordinates stored in wrong order).
+        // The route geometry IS always correct — its first vertex maps to startBusPark
+        // and its last vertex maps to endBusPark.
+        for (RouteEntity r : routes) {
+            if (r.getGeo() == null) continue;
+            org.locationtech.jts.geom.Coordinate[] pts = r.getGeo().getCoordinates();
+            if (pts.length < 2) continue;
+
+            if (r.getStartBusPark() != null) {
+                double sLat = pts[0].y, sLon = pts[0].x;
+                if (GeoUtils.haversineM(lat, lon, sLat, sLon) <= PARK_RADIUS_M) {
+                    return r.getStartBusPark().getId();
+                }
+            }
+            if (r.getEndBusPark() != null) {
+                double eLat = pts[pts.length - 1].y, eLon = pts[pts.length - 1].x;
+                if (GeoUtils.haversineM(lat, lon, eLat, eLon) <= PARK_RADIUS_M) {
+                    return r.getEndBusPark().getId();
+                }
+            }
+        }
         return null;
     }
 
@@ -302,34 +307,87 @@ public class GpsIngestService {
             List<RouteEntity> routes, BusState state, VehiclePayload.GpsData gps,
             StopResolverService.StopResolution stopRes, int onBoard, Instant timestamp) {
 
-        UUID   routeId   = activeRoute != null ? activeRoute.getId()   : fallbackRouteId(routes);
-        String routeCode = routeCode(activeRoute, routes);
-        String routeName = activeRoute != null ? activeRoute.getName() : fallbackRouteName(routes);
-        Integer avail    = bus.getCapacity() != null ? Math.max(0, bus.getCapacity() - onBoard) : null;
+        // When no active trip: show null routeId/routeName so the frontend displays
+        // "No route assigned" and tripId=null. The bus will receive new IDs the moment
+        // it departs the terminal and a fresh trip starts.
+        // routeCode is still resolved (for the header chip) even without an active trip.
+        RouteEntity displayRoute = activeRoute;
+
+        UUID    routeId   = activeRoute != null ? activeRoute.getId()   : null;
+        String  routeCode = routeCodeFor(activeRoute, routes);
+        String  routeName = activeRoute != null ? activeRoute.getName() : null;
+        Integer avail     = bus.getCapacity() != null ? Math.max(0, bus.getCapacity() - onBoard) : null;
+
+        double lat = parseDouble(gps.getLatitude());
+        double lon = parseDouble(gps.getLongitude());
+
+        Double distToNextStop = null;
+        Double distToTerminal = null;
+        Double progressPct    = null;
+
+        if (displayRoute != null && displayRoute.getGeo() != null) {
+            var line = displayRoute.getGeo();
+
+            if (stopRes.nextStopLat() != null && stopRes.nextStopLon() != null) {
+                distToNextStop = GeoUtils.distanceAlongLineM(
+                        line, lat, lon, stopRes.nextStopLat(), stopRes.nextStopLon());
+            }
+
+            // Distance to terminal only while actively on a trip.
+            // Use the route's last vertex as terminal position — this avoids relying on
+            // bus park polygon centroids, which may have swapped lat/lon in the DB.
+            if (activeRoute != null) {
+                org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
+                if (pts.length > 0) {
+                    org.locationtech.jts.geom.Coordinate end = pts[pts.length - 1];
+                    distToTerminal = GeoUtils.distanceAlongLineM(line, lat, lon, end.y, end.x);
+                }
+            }
+
+            // Always compute progress so the bus icon stays visible on the route line
+            progressPct = GeoUtils.progressPercent(line, lat, lon);
+        }
+
+        // When all stops are passed nextStopName is null — fall back to the terminal name
+        // so the UI always shows a destination rather than blank.
+        String nextStopName = stopRes.nextStopName();
+        if (nextStopName == null && activeRoute != null
+                && activeRoute.getEndBusPark() != null) {
+            nextStopName = activeRoute.getEndBusPark().getName();
+            if (distToTerminal != null) distToNextStop = distToTerminal;
+        }
 
         return new VehicleLiveSnapshot(
                 bus.getId(), bus.getPlateNumber(),
                 routeId, routeCode, routeName,
-                parseDouble(gps.getLatitude()), parseDouble(gps.getLongitude()),
+                lat, lon,
                 parseDouble(gps.getSpeedKmh()), parseDouble(gps.getHeadingDeg()),
                 true, false,
-                stopRes.currentStopName(), stopRes.nextStopName(),
+                stopRes.currentStopName(), nextStopName,
+                distToNextStop, distToTerminal, progressPct,
                 onBoard, avail, state.activeTripId(), timestamp);
     }
 
     private VehicleLiveSnapshot buildNoFixSnapshot(BusEntity bus, List<RouteEntity> routes,
             BusState state, Instant timestamp) {
         VehicleLiveSnapshot prev = state.lastSnapshot();
+        // No active trip → routeId/routeName null (consistent with buildSnapshot)
+        UUID   routeId   = state.activeTripId() != null && prev != null ? prev.routeId()   : null;
+        String routeCode = routeCodeFor(null, routes);
+        String routeName = state.activeTripId() != null && prev != null ? prev.routeName() : null;
         return new VehicleLiveSnapshot(
                 bus.getId(), bus.getPlateNumber(),
-                fallbackRouteId(routes), routeCode(null, routes), fallbackRouteName(routes),
-                prev != null ? prev.latitude()           : null,
-                prev != null ? prev.longitude()          : null,
+                routeId, routeCode, routeName,
+                prev != null ? prev.latitude()            : null,
+                prev != null ? prev.longitude()           : null,
                 null, null, false, false,
-                prev != null ? prev.currentStopName()    : null,
-                prev != null ? prev.nextStopName()       : null,
-                prev != null ? prev.passengersOnBoard()  : 0,
-                prev != null ? prev.availableSeats()     : bus.getCapacity(),
+                prev != null ? prev.currentStopName()     : null,
+                prev != null ? prev.nextStopName()        : null,
+                prev != null ? prev.distanceToNextStopM() : null,
+                prev != null ? prev.distanceToTerminalM() : null,
+                prev != null ? prev.progressPercent()     : null,
+                prev != null ? prev.passengersOnBoard()   : 0,
+                prev != null ? prev.availableSeats()      : bus.getCapacity(),
                 state.activeTripId(), timestamp);
     }
 
@@ -337,7 +395,7 @@ public class GpsIngestService {
 
     private BusState syncFromDb(BusEntity bus, BusState state) {
         if (state.activeTripId() == null) {
-            TripEntity active = tripRepository.findByBusIdAndStatus(bus.getId(), TripStatus.ACTIVE)
+            TripEntity active = tripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE)
                     .orElse(null);
             if (active != null) {
                 state = state.withTrip(active.getId(), active.getRoute().getId(),
@@ -366,12 +424,13 @@ public class GpsIngestService {
         return Math.max(0, inDelta - outDelta);
     }
 
-    private UUID   fallbackRouteId(List<RouteEntity> routes)   { return routes.isEmpty() ? null : routes.get(0).getId(); }
-    private String fallbackRouteName(List<RouteEntity> routes) { return routes.isEmpty() ? null : routes.get(0).getName(); }
-    private String routeCode(RouteEntity active, List<RouteEntity> routes) {
-        RouteEntity r = active != null ? active : (routes.isEmpty() ? null : routes.get(0));
+
+
+    private String routeCodeFor(RouteEntity route, List<RouteEntity> routes) {
+        RouteEntity r = route != null ? route : (routes.isEmpty() ? null : routes.get(0));
         return r != null && r.getRouteCode() != null ? r.getRouteCode().getCode() : null;
     }
+
 
     private Double parseDouble(String v) {
         if (v == null || v.isBlank() || "null".equalsIgnoreCase(v)) return null;

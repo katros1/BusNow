@@ -15,6 +15,9 @@ public record JourneyPlanResponseDto(
             double walkToBoardingKm,
             double walkToDestinationKm,
             double totalWalkingKm,
+            int walkToBoardingMinutes,
+            int walkToDestinationMinutes,
+            int totalWalkingMinutes,
             String tier
     ) {
     }

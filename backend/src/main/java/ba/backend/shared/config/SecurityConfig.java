@@ -47,7 +47,14 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/simulator/**", "/actuator/**", "/v3/api-docs/**", "/swagger-ui/**", "/ws/**").permitAll()
+                .requestMatchers(
+                    "/api/v1/simulator/**",
+                    "/api/v1/journey-planner/**",
+                    "/actuator/**",
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/ws/**"
+                ).permitAll()
                 .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated()
             )

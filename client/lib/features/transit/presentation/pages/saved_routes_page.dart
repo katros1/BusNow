@@ -73,7 +73,7 @@ class SavedRoutesPage extends StatelessWidget {
       children: [
         _LocationCard(icon: LucideIcons.home, label: 'Home', color: AppColors.primary),
         const SizedBox(width: 16),
-        _LocationCard(icon: LucideIcons.briefcase, label: 'Work', color: AppColors.secondary),
+        _LocationCard(icon: LucideIcons.briefcase, label: 'Work', color: AppColors.primary),
         const SizedBox(width: 16),
         _LocationCard(icon: LucideIcons.plus, label: 'Add', color: AppColors.outline, isOutline: true),
       ],
@@ -93,7 +93,7 @@ class SavedRoutesPage extends StatelessWidget {
           title: 'Downtown → Nyabugogo',
           route: 'Line 102',
           eta: '12 mins',
-          color: AppColors.secondary,
+          color: AppColors.primary,
         ),
       ],
     ).animate().fadeIn(delay: 400.ms);

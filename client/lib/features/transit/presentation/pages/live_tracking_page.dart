@@ -4,7 +4,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/core/widgets/glass_container.dart';
-import 'package:client/core/widgets/app_widgets.dart';
 
 class LiveTrackingPage extends StatelessWidget {
   const LiveTrackingPage({super.key});
@@ -51,7 +50,7 @@ class LiveTrackingPage extends StatelessWidget {
                     point: LatLng(-1.9541, 30.0719),
                     width: 40,
                     height: 40,
-                    child: Icon(LucideIcons.mapPin, color: AppColors.secondary, size: 30),
+                    child: Icon(LucideIcons.mapPin, color: AppColors.primary, size: 30),
                   ),
                 ],
               ),

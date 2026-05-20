@@ -191,8 +191,8 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                         // To
                         _SearchFieldTile(
                           icon: LucideIcons.mapPin,
-                          iconBg: const Color(0xFFE53935).withValues(alpha: 0.1),
-                          iconColor: const Color(0xFFE53935),
+                          iconBg: AppColors.primaryContainer,
+                          iconColor: AppColors.primaryDark,
                           label: 'TO',
                           value: dest?.name,
                           placeholder: 'Where are you going?',
@@ -272,7 +272,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                         child: _QuickCard(
                           icon: LucideIcons.bus,
                           label: 'Nearby\nStops',
-                          color: AppColors.primary,
+                          color: AppColors.primaryDark,
                           onTap: () => context.push('/nearby'),
                         ),
                       ),
@@ -281,7 +281,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                         child: _QuickCard(
                           icon: LucideIcons.map,
                           label: 'Live\nTracking',
-                          color: const Color(0xFF2E7D32),
+                          color: AppColors.primary,
                           onTap: () => context.push('/tracking'),
                         ),
                       ),
@@ -290,7 +290,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                         child: _QuickCard(
                           icon: LucideIcons.bookmark,
                           label: 'Saved\nRoutes',
-                          color: const Color(0xFF6A1B9A),
+                          color: AppColors.primary,
                           onTap: () => context.push('/saved'),
                         ),
                       ),
@@ -357,7 +357,7 @@ class _GradientHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF002D6B), AppColors.primary, Color(0xFF1565C0)],
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
           stops: [0.0, 0.55, 1.0],
         ),
       ),

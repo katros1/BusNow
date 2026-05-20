@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:client/core/theme/app_colors.dart';
 
 
 class RootLayout extends StatelessWidget {
@@ -46,7 +47,7 @@ class _BottomBar extends StatelessWidget {
             height: 68,
             decoration: BoxDecoration(
               // Deep charcoal with slight transparency for the glass effect
-              color: const Color(0xF0111827),
+              color: AppColors.navBar.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: Colors.white.withValues(alpha: 0.08),

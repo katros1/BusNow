@@ -161,12 +161,12 @@ class _NearbyStopContent extends ConsumerWidget {
                         height: 44,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.secondary,
+                            color: AppColors.primary,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 3),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.secondary.withValues(alpha:0.4),
+                                color: AppColors.primary.withValues(alpha:0.4),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -192,10 +192,10 @@ class _NearbyStopContent extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha:0.1),
+                      color: AppColors.primary.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(LucideIcons.bus, color: AppColors.secondary, size: 24),
+                    child: const Icon(LucideIcons.bus, color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

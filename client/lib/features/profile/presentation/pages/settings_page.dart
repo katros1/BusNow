@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
-import 'package:client/core/widgets/app_widgets.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -13,27 +12,132 @@ class SettingsPage extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          _buildSliverHeader(context),
+          // ── Header ─────────────────────────────────────────────────────────
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            title: const Text(
+              'Settings',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.onSurface,
+                fontSize: 18,
+              ),
+            ),
+          ),
+
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 120),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProfileSummary(),
-                  const SizedBox(height: 48),
-                  const SectionHeader(title: 'Experience'),
-                  _buildSettingsGroup([
-                    _SettingsTile(icon: LucideIcons.moon, title: 'Dark Appearance', trailing: Switch(value: true, activeColor: AppColors.primary, onChanged: (v) {})),
-                    const _SettingsTile(icon: LucideIcons.bell, title: 'Smart Trip Alerts', subtitle: 'Active for Line 402'),
-                    const _SettingsTile(icon: LucideIcons.map, title: 'Map Tile Preferences', subtitle: 'Esri Satellite'),
-                  ]),
+                  // ── App branding card ─────────────────────────────────────
+                  _AppCard().animate().fadeIn(duration: 500.ms),
+
                   const SizedBox(height: 32),
-                  const SectionHeader(title: 'Account & Security'),
-                  _buildSettingsGroup([
-                    const _SettingsTile(icon: LucideIcons.creditCard, title: 'Urban Wallet', subtitle: 'FRW 12,500 balance'),
-                    const _SettingsTile(icon: LucideIcons.shield, title: 'Privacy Policy'),
-                    const _SettingsTile(icon: LucideIcons.logOut, title: 'Sign Out', titleColor: AppColors.error),
-                  ]),
+
+                  // ── Preferences ───────────────────────────────────────────
+                  _SectionLabel('Preferences'),
+                  const SizedBox(height: 10),
+                  _SettingsGroup(children: [
+                    _SwitchTile(
+                      icon: LucideIcons.bell,
+                      title: 'Trip Alerts',
+                      subtitle: 'Notify when near boarding stop',
+                      value: true,
+                    ),
+                    _SwitchTile(
+                      icon: LucideIcons.navigation2,
+                      title: 'GPS Location',
+                      subtitle: 'Auto-detect your position',
+                      value: true,
+                    ),
+                    _SwitchTile(
+                      icon: LucideIcons.moon,
+                      title: 'Dark Appearance',
+                      subtitle: 'Match system theme',
+                      value: false,
+                    ),
+                  ]).animate().fadeIn(delay: 100.ms),
+
+                  const SizedBox(height: 28),
+
+                  // ── Map ───────────────────────────────────────────────────
+                  _SectionLabel('Map'),
+                  const SizedBox(height: 10),
+                  _SettingsGroup(children: [
+                    const _NavTile(
+                      icon: LucideIcons.layers,
+                      title: 'Map Style',
+                      subtitle: 'OpenStreetMap (standard)',
+                    ),
+                    const _NavTile(
+                      icon: LucideIcons.zoomIn,
+                      title: 'Default Zoom',
+                      subtitle: 'City level (zoom 13)',
+                    ),
+                  ]).animate().fadeIn(delay: 180.ms),
+
+                  const SizedBox(height: 28),
+
+                  // ── About ─────────────────────────────────────────────────
+                  _SectionLabel('About'),
+                  const SizedBox(height: 10),
+                  _SettingsGroup(children: [
+                    const _NavTile(
+                      icon: LucideIcons.info,
+                      title: 'About IOTS',
+                      subtitle: 'Rwanda Intelligent Transit System',
+                    ),
+                    const _NavTile(
+                      icon: LucideIcons.shield,
+                      title: 'Privacy Policy',
+                      subtitle: 'How we use your data',
+                    ),
+                    const _NavTile(
+                      icon: LucideIcons.fileText,
+                      title: 'Terms of Service',
+                    ),
+                  ]).animate().fadeIn(delay: 260.ms),
+
+                  const SizedBox(height: 28),
+
+                  // ── Version ───────────────────────────────────────────────
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(LucideIcons.bus,
+                              color: AppColors.primary, size: 24),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'IOTS Rwanda',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Version 1.0.0',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 350.ms),
                 ],
               ),
             ),
@@ -42,77 +146,145 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildSliverHeader(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 120,
-      backgroundColor: AppColors.background,
-      elevation: 0,
-      pinned: true,
-      centerTitle: false,
-      title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.onSurface)),
-    );
-  }
+// ─── App branding card ────────────────────────────────────────────────────────
 
-  Widget _buildProfileSummary() {
+class _AppCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.onSurface, Color(0xFF2C3E50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [AppColors.primaryDark, AppColors.primary, AppColors.primaryLight],
+          stops: [0.0, 0.5, 1.0],
         ),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(LucideIcons.user, color: Colors.white, size: 30),
+            child: const Icon(LucideIcons.bus,
+                color: Colors.white, size: 28),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 16),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Alex Commuter',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                  'IOTS Rwanda',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
                 ),
+                SizedBox(height: 3),
                 Text(
-                  'verified_kigali_id',
-                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                  'Intelligent Transit System',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Row(
+                  children: [
+                    _Pill('🇷🇼 Kigali'),
+                    SizedBox(width: 6),
+                    _Pill('Public Transit'),
+                  ],
                 ),
               ],
             ),
           ),
-          const Icon(LucideIcons.chevronRight, color: Colors.white54),
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.95, 0.95));
+    );
   }
+}
 
-  Widget _buildSettingsGroup(List<Widget> children) {
-    return TonalCard(
-      padding: EdgeInsets.zero,
+class _Pill extends StatelessWidget {
+  final String label;
+  const _Pill(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Section label ────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: AppColors.onSurfaceVariant,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Settings group ───────────────────────────────────────────────────────────
+
+class _SettingsGroup extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsGroup({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
       child: Column(
-        children: children.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final widget = entry.value;
+        children: children.asMap().entries.map((e) {
+          final isLast = e.key == children.length - 1;
           return Column(
             children: [
-              widget,
-              if (idx < children.length - 1) 
-                Padding(
-                  padding: const EdgeInsets.only(left: 56),
-                  child: Divider(height: 1, color: AppColors.surfaceContainerHighest.withOpacity(0.5)),
-                ),
+              e.value,
+              if (!isLast)
+                const Divider(
+                    height: 1, indent: 56, color: AppColors.outlineVariant),
             ],
           );
         }).toList(),
@@ -121,42 +293,109 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _SettingsTile extends StatelessWidget {
+// ─── Switch tile ──────────────────────────────────────────────────────────────
+
+class _SwitchTile extends StatefulWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
-  final Widget? trailing;
-  final Color? titleColor;
-
-  const _SettingsTile({
+  final bool value;
+  const _SwitchTile({
     required this.icon,
     required this.title,
     this.subtitle,
-    this.trailing,
-    this.titleColor,
+    required this.value,
   });
+
+  @override
+  State<_SwitchTile> createState() => _SwitchTileState();
+}
+
+class _SwitchTileState extends State<_SwitchTile> {
+  late bool _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value;
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        padding: const EdgeInsets.all(10),
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: (titleColor ?? AppColors.primary).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: titleColor ?? AppColors.primary, size: 20),
+        child: Icon(widget.icon, color: AppColors.primary, size: 18),
+      ),
+      title: Text(
+        widget.title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: AppColors.onSurface,
+        ),
+      ),
+      subtitle: widget.subtitle != null
+          ? Text(widget.subtitle!,
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.onSurfaceVariant))
+          : null,
+      trailing: Switch(
+        value: _value,
+        onChanged: (v) => setState(() => _value = v),
+        activeThumbColor: AppColors.primary,
+        inactiveThumbColor: AppColors.outlineVariant,
+        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+      ),
+    );
+  }
+}
+
+// ─── Nav tile ─────────────────────────────────────────────────────────────────
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  const _NavTile({required this.icon, required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: () {},
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 18),
       ),
       title: Text(
         title,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: titleColor ?? AppColors.onSurface),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: AppColors.onSurface,
+        ),
       ),
-      subtitle: subtitle != null 
-          ? Text(subtitle!, style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)) 
+      subtitle: subtitle != null
+          ? Text(subtitle!,
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.onSurfaceVariant))
           : null,
-      trailing: trailing ?? const Icon(LucideIcons.chevronRight, size: 16),
-      onTap: trailing == null ? () {} : null,
+      trailing: const Icon(LucideIcons.chevronRight,
+          size: 15, color: AppColors.outlineVariant),
     );
   }
 }

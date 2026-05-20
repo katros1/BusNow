@@ -10,14 +10,14 @@ import 'package:client/features/journey_planner/presentation/providers/journey_p
 
 // ─── Colour constants ────────────────────────────────────────────────────────
 
-const _kRouteBlue = Color(0xFF005BBF);
-const _kWalkGreen = Color(0xFF1A8F4A);
-const _kAlightOrange = Color(0xFFE07B00);
+const _kRouteBlue    = AppColors.primary;
+const _kWalkGreen    = AppColors.primaryLight;
+const _kAlightOrange = AppColors.primaryDark;
 
 Color _tierColor(String tier) => switch (tier) {
-      'TIER_1' => const Color(0xFF1A8F4A),
-      'TIER_2' => const Color(0xFF795900),
-      _ => const Color(0xFFBA1A1A),
+      'TIER_1' => AppColors.primary,
+      'TIER_2' => AppColors.primaryLight,
+      _ => AppColors.error,
     };
 
 String _tierLabel(String tier) => switch (tier) {

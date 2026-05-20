@@ -79,6 +79,45 @@ class NearestStop extends Equatable {
   List<Object?> get props => [stopId];
 }
 
+// Centroid of a stop's polygon geometry from the route stops endpoint.
+class RouteStopPoint extends Equatable {
+  final String id;
+  final String name;
+  final int sequence;
+  final LatLng coordinates;
+
+  const RouteStopPoint({
+    required this.id,
+    required this.name,
+    required this.sequence,
+    required this.coordinates,
+  });
+
+  factory RouteStopPoint.fromJson(Map<String, dynamic> json) {
+    final coords = json['coordinates'] as List<dynamic>;
+    // Compute centroid from polygon ring [[lng,lat], ...]
+    double sumLng = 0, sumLat = 0;
+    int count = 0;
+    for (final pt in coords) {
+      final pair = pt as List<dynamic>;
+      sumLng += (pair[0] as num).toDouble();
+      sumLat += (pair[1] as num).toDouble();
+      count++;
+    }
+    return RouteStopPoint(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      sequence: json['sequence'] as int,
+      coordinates: count > 0
+          ? LatLng(sumLat / count, sumLng / count)
+          : const LatLng(0, 0),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class OsmPlace extends Equatable {
   final String name;
   final String displayName;

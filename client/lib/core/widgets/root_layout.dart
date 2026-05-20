@@ -1,69 +1,79 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:client/core/theme/app_colors.dart';
-import 'package:client/core/widgets/glass_container.dart';
-import 'dart:ui';
+
 
 class RootLayout extends StatelessWidget {
   final Widget child;
-
   const RootLayout({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Allows content to flow behind the bottom bar
+      extendBody: true,
       body: child,
-      bottomNavigationBar: const _FloatingBottomBar(),
+      bottomNavigationBar: const _BottomBar(),
     );
   }
 }
 
-class _FloatingBottomBar extends StatelessWidget {
-  const _FloatingBottomBar();
+// ─── Floating bottom bar ──────────────────────────────────────────────────────
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar();
+
+  static const _items = [
+    (path: '/', icon: LucideIcons.home, label: 'Home'),
+    (path: '/saved', icon: LucideIcons.bookmark, label: 'Saved'),
+    (path: '/settings', icon: LucideIcons.settings, label: 'Settings'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    
-    return Container(
-      height: 100,
-      margin: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 68,
             decoration: BoxDecoration(
-              color: AppColors.onSurface.withOpacity(0.85), // Dark sleek bar
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavButton(
-                  icon: LucideIcons.home,
-                  label: 'Home',
-                  isActive: location == '/',
-                  onTap: () => context.go('/'),
-                ),
-                _NavButton(
-                  icon: LucideIcons.bookmark,
-                  label: 'Saved',
-                  isActive: location == '/saved',
-                  onTap: () => context.go('/saved'),
-                ),
-                _NavButton(
-                  icon: LucideIcons.settings,
-                  label: 'Settings',
-                  isActive: location == '/settings',
-                  onTap: () => context.go('/settings'),
+              // Deep charcoal with slight transparency for the glass effect
+              color: const Color(0xF0111827),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
               ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _items.map((item) {
+                final active = location == item.path;
+                return _BarItem(
+                  icon: item.icon,
+                  label: item.label,
+                  isActive: active,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.go(item.path);
+                  },
+                );
+              }).toList(),
             ),
           ),
         ),
@@ -72,13 +82,13 @@ class _FloatingBottomBar extends StatelessWidget {
   }
 }
 
-class _NavButton extends StatelessWidget {
+class _BarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
 
-  const _NavButton({
+  const _BarItem({
     required this.icon,
     required this.label,
     required this.isActive,
@@ -87,37 +97,43 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Colors.white : Colors.white.withOpacity(0.4);
-    
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: 280.ms,
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: isActive
+            ? const EdgeInsets.symmetric(horizontal: 18, vertical: 10)
+            : const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white.withOpacity(0.12) : Colors.transparent,
+          color: isActive
+              ? Colors.white.withValues(alpha: 0.13)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 24),
-            if (isActive) ...[
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ).animate().fadeIn(duration: 200.ms).scale(begin: const Offset(0.8, 0.8)),
-            ]
-          ],
-        ),
+        child: isActive
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ).animate().fadeIn(duration: 200.ms).slideX(begin: -0.1, end: 0)
+            : Icon(
+                icon,
+                color: Colors.white.withValues(alpha: 0.38),
+                size: 22,
+              ),
       ),
     );
   }

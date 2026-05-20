@@ -85,6 +85,33 @@ final osmSearchProvider =
       .toList();
 });
 
+// ─── Selected route suggestion ───────────────────────────────────────────────
+
+final class _SuggestionNotifier extends Notifier<RouteSuggestion?> {
+  @override
+  RouteSuggestion? build() => null;
+  void select(RouteSuggestion? suggestion) => state = suggestion;
+}
+
+final selectedSuggestionProvider =
+    NotifierProvider<_SuggestionNotifier, RouteSuggestion?>(_SuggestionNotifier.new);
+
+// ─── Route stops ─────────────────────────────────────────────────────────────
+// Fetches all stops for a given routeId from GET /routes/{id}/stops.
+// The response is a list of {id, name, sequence, coordinates} objects.
+// coordinates is a GeoJSON polygon (List<List<Double>>); we compute the centroid.
+
+final routeStopsProvider =
+    FutureProvider.family<List<RouteStopPoint>, String>((ref, routeId) async {
+  final response = await ref.read(dioProvider).get('/routes/$routeId/stops');
+  final list = response.data as List<dynamic>;
+  final stops = list
+      .map((e) => RouteStopPoint.fromJson(e as Map<String, dynamic>))
+      .toList()
+    ..sort((a, b) => a.sequence.compareTo(b.sequence));
+  return stops;
+});
+
 // ─── Selected places (origin + destination) ──────────────────────────────────
 
 final class _OsmPlaceNotifier extends Notifier<OsmPlace?> {

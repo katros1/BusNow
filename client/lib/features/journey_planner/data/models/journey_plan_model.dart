@@ -3,7 +3,6 @@ import 'package:client/features/journey_planner/domain/entities/journey_entities
 
 class JourneyPlanModel {
   final List<RouteSuggestionModel> suggestions;
-
   const JourneyPlanModel({required this.suggestions});
 
   factory JourneyPlanModel.fromJson(Map<String, dynamic> json) {
@@ -15,9 +14,8 @@ class JourneyPlanModel {
     );
   }
 
-  JourneyPlan toEntity() => JourneyPlan(
-        suggestions: suggestions.map((s) => s.toEntity()).toList(),
-      );
+  JourneyPlan toEntity() =>
+      JourneyPlan(suggestions: suggestions.map((s) => s.toEntity()).toList());
 }
 
 class RouteSuggestionModel {
@@ -29,6 +27,9 @@ class RouteSuggestionModel {
   final double walkToBoardingKm;
   final double walkToDestinationKm;
   final double totalWalkingKm;
+  final int walkToBoardingMinutes;
+  final int walkToDestinationMinutes;
+  final int totalWalkingMinutes;
   final String tier;
 
   const RouteSuggestionModel({
@@ -40,6 +41,9 @@ class RouteSuggestionModel {
     required this.walkToBoardingKm,
     required this.walkToDestinationKm,
     required this.totalWalkingKm,
+    required this.walkToBoardingMinutes,
+    required this.walkToDestinationMinutes,
+    required this.totalWalkingMinutes,
     required this.tier,
   });
 
@@ -47,20 +51,27 @@ class RouteSuggestionModel {
     final rawCoords = json['routeCoordinates'] as List<dynamic>? ?? [];
     final coords = rawCoords.map((c) {
       final pair = c as List<dynamic>;
-      final lng = (pair[0] as num).toDouble();
-      final lat = (pair[1] as num).toDouble();
-      return LatLng(lat, lng);
+      // API returns [longitude, latitude]
+      return LatLng((pair[1] as num).toDouble(), (pair[0] as num).toDouble());
     }).toList();
 
     return RouteSuggestionModel(
       routeId: json['routeId'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
       routeCoordinates: coords,
-      boardingPoint: RoutePointModel.fromJson(json['boardingPoint'] as Map<String, dynamic>),
-      destinationPoint: RoutePointModel.fromJson(json['destinationPoint'] as Map<String, dynamic>),
-      walkToBoardingKm: (json['walkToBoardingKm'] as num? ?? 0).toDouble(),
-      walkToDestinationKm: (json['walkToDestinationKm'] as num? ?? 0).toDouble(),
+      boardingPoint: RoutePointModel.fromJson(
+          json['boardingPoint'] as Map<String, dynamic>),
+      destinationPoint: RoutePointModel.fromJson(
+          json['destinationPoint'] as Map<String, dynamic>),
+      walkToBoardingKm:
+          (json['walkToBoardingKm'] as num? ?? 0).toDouble(),
+      walkToDestinationKm:
+          (json['walkToDestinationKm'] as num? ?? 0).toDouble(),
       totalWalkingKm: (json['totalWalkingKm'] as num? ?? 0).toDouble(),
+      walkToBoardingMinutes: json['walkToBoardingMinutes'] as int? ?? 0,
+      walkToDestinationMinutes:
+          json['walkToDestinationMinutes'] as int? ?? 0,
+      totalWalkingMinutes: json['totalWalkingMinutes'] as int? ?? 0,
       tier: json['tier'] as String? ?? '',
     );
   }
@@ -74,6 +85,9 @@ class RouteSuggestionModel {
         walkToBoardingKm: walkToBoardingKm,
         walkToDestinationKm: walkToDestinationKm,
         totalWalkingKm: totalWalkingKm,
+        walkToBoardingMinutes: walkToBoardingMinutes,
+        walkToDestinationMinutes: walkToDestinationMinutes,
+        totalWalkingMinutes: totalWalkingMinutes,
         tier: tier,
       );
 }
@@ -94,16 +108,17 @@ class RoutePointModel {
   });
 
   factory RoutePointModel.fromJson(Map<String, dynamic> json) {
-    final rawCoords = json['coordinates'] as List<dynamic>;
-    final lng = (rawCoords[0] as num).toDouble();
-    final lat = (rawCoords[1] as num).toDouble();
-
+    final raw = json['coordinates'] as List<dynamic>;
+    // API returns [longitude, latitude]
     return RoutePointModel(
       pointId: json['pointId'] as String? ?? '',
       pointName: json['pointName'] as String? ?? '',
       pointType: json['pointType'] as String? ?? '',
       sequence: json['sequence'] as int? ?? 0,
-      coordinates: LatLng(lat, lng),
+      coordinates: LatLng(
+        (raw[1] as num).toDouble(),
+        (raw[0] as num).toDouble(),
+      ),
     );
   }
 

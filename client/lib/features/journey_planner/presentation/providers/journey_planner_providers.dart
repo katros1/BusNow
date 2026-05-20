@@ -49,36 +49,38 @@ final locationProvider = FutureProvider<Position?>((ref) async {
   );
 });
 
-// ─── Place autocomplete via Photon (komoot) ──────────────────────────────────
-// Photon is built on OSM data, has no strict rate-limit, and is optimised for
-// autocomplete. Rwanda bounding box: west=28.85, south=-2.84, east=30.90, north=-1.04
+// ─── Place autocomplete via Nominatim (OSM) ──────────────────────────────────
+// Nominatim is OSM's official geocoding API. Restricted to Rwanda via
+// countrycodes=rw. Requires a descriptive User-Agent per OSM policy.
 
 final osmSearchProvider =
     FutureProvider.family<List<OsmPlace>, String>((ref, query) async {
   final q = query.trim();
   if (q.length < 2) return [];
 
-  // Debounce: if the user keeps typing the old provider is disposed before
-  // this delay expires, so the HTTP call is never made for intermediate chars.
-  await Future.delayed(const Duration(milliseconds: 450));
+  // Debounce: provider is disposed on each keystroke, so the HTTP call only
+  // fires after the user pauses.
+  await Future.delayed(const Duration(milliseconds: 400));
 
   final response = await Dio(BaseOptions(
+    baseUrl: 'https://nominatim.openstreetmap.org',
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
-  )).get(
-    'https://photon.komoot.io/api/',
-    queryParameters: {
-      'q': q,
-      'limit': '6',
-      'lang': 'en',
-      'bbox': '28.85,-2.84,30.90,-1.04',
+    headers: {
+      'User-Agent': 'IOTS-Rwanda-Transit/1.0 (lambertbayiringire@gmail.com)',
+      'Accept-Language': 'en',
     },
-  );
+  )).get('/search', queryParameters: {
+    'q': q,
+    'format': 'json',
+    'limit': 8,
+    'countrycodes': 'rw',
+    'addressdetails': 1,
+  });
 
-  final features =
-      (response.data as Map<String, dynamic>)['features'] as List<dynamic>;
-  return features
-      .map((f) => OsmPlace.fromPhoton(f as Map<String, dynamic>))
+  final list = response.data as List<dynamic>;
+  return list
+      .map((e) => OsmPlace.fromJson(e as Map<String, dynamic>))
       .where((p) => p.name.isNotEmpty)
       .toList();
 });

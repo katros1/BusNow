@@ -7,14 +7,26 @@ class JourneyPlannerRemoteDataSource {
   final Dio _dio;
   const JourneyPlannerRemoteDataSource(this._dio);
 
+  /// GET /journey-planner/plan
+  /// Params:  fromLat, fromLng, toLat, toLng, maxSuggestions
+  /// Convention: currentLocation / destinationLocation stored as [longitude, latitude].
   Future<JourneyPlanModel> planJourney(PlanJourneyParams params) async {
     try {
-      final body = {
-        'currentLocation': params.currentLocation,
-        'destinationLocation': params.destinationLocation,
-        'maxSuggestions': params.maxSuggestions ?? 5,
-      };
-      final response = await _dio.post('/journey-planner/plan', data: body);
+      final fromLng = params.currentLocation[0];
+      final fromLat = params.currentLocation[1];
+      final toLng = params.destinationLocation[0];
+      final toLat = params.destinationLocation[1];
+
+      final response = await _dio.get(
+        '/journey-planner/plan',
+        queryParameters: {
+          'fromLat': fromLat,
+          'fromLng': fromLng,
+          'toLat': toLat,
+          'toLng': toLng,
+          'maxSuggestions': params.maxSuggestions ?? 5,
+        },
+      );
       return JourneyPlanModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _handleDioError(e);
@@ -41,6 +53,7 @@ class JourneyPlannerRemoteDataSource {
         e.type == DioExceptionType.connectionError) {
       return Exception('Network error: Unable to reach server');
     }
-    return Exception('Server error${statusCode != null ? ' ($statusCode)' : ''}: ${e.message}');
+    return Exception(
+        'Server error${statusCode != null ? ' ($statusCode)' : ''}: ${e.message}');
   }
 }

@@ -17,6 +17,9 @@ class RouteSuggestion extends Equatable {
   final double walkToBoardingKm;
   final double walkToDestinationKm;
   final double totalWalkingKm;
+  final int walkToBoardingMinutes;
+  final int walkToDestinationMinutes;
+  final int totalWalkingMinutes;
   final String tier;
 
   const RouteSuggestion({
@@ -28,6 +31,9 @@ class RouteSuggestion extends Equatable {
     required this.walkToBoardingKm,
     required this.walkToDestinationKm,
     required this.totalWalkingKm,
+    required this.walkToBoardingMinutes,
+    required this.walkToDestinationMinutes,
+    required this.totalWalkingMinutes,
     required this.tier,
   });
 
@@ -49,6 +55,8 @@ class RoutePoint extends Equatable {
     required this.sequence,
     required this.coordinates,
   });
+
+  bool get isBusPark => pointType == 'BUS_PARK';
 
   @override
   List<Object?> get props => [pointId];
@@ -84,7 +92,6 @@ class OsmPlace extends Equatable {
     required this.lon,
   });
 
-  // Nominatim JSON format
   factory OsmPlace.fromJson(Map<String, dynamic> json) {
     final displayName = json['display_name'] as String;
     final rawName = json['name'] as String?;
@@ -99,25 +106,21 @@ class OsmPlace extends Equatable {
     );
   }
 
-  // Photon (komoot) GeoJSON feature format
   factory OsmPlace.fromPhoton(Map<String, dynamic> feature) {
     final coords =
         (feature['geometry'] as Map<String, dynamic>)['coordinates'] as List<dynamic>;
     final props = feature['properties'] as Map<String, dynamic>;
-
     final name = props['name'] as String? ??
         props['street'] as String? ??
         props['city'] as String? ??
         '';
     final city = props['city'] as String? ?? props['county'] as String? ?? '';
     final country = props['country'] as String? ?? '';
-
     final parts = <String>[
       if (name.isNotEmpty) name,
       if (city.isNotEmpty && city != name) city,
       if (country.isNotEmpty) country,
     ];
-
     return OsmPlace(
       name: name.isNotEmpty ? name : (city.isNotEmpty ? city : 'Place'),
       displayName: parts.join(', '),

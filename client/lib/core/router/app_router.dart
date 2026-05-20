@@ -26,10 +26,6 @@ class AppRouter {
             builder: (context, state) => const HomePage(),
           ),
           GoRoute(
-            path: '/search',
-            builder: (context, state) => const SearchResultsPage(),
-          ),
-          GoRoute(
             path: '/saved',
             builder: (context, state) => const SavedRoutesPage(),
           ),
@@ -38,6 +34,12 @@ class AppRouter {
             builder: (context, state) => const SettingsPage(),
           ),
         ],
+      ),
+      // Full-screen pages (no bottom nav bar)
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/search',
+        builder: (context, state) => const SearchResultsPage(),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,

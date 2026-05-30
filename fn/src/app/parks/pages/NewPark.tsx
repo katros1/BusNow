@@ -45,7 +45,7 @@ function buildCreatePayload(draft: ParkDraft): CreateParkPayload {
 function NewPark() {
   const [draft, setDraft] = useState<ParkDraft>({ name: "", shapes: [] });
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  // const [copied, setCopied] = useState(false);
 
   const createPark = useCreatePark();
 
@@ -79,15 +79,15 @@ function NewPark() {
     createPark.mutate(buildCreatePayload(draft));
   }, [draft, createPark]);
 
-  const handleCopyResponse = useCallback(() => {
-    if (!createPark.data) return;
-    navigator.clipboard
-      .writeText(JSON.stringify(createPark.data, null, 2))
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-  }, [createPark.data]);
+    // const handleCopyResponse = useCallback(() => {
+  //   if (!createPark.data) return;
+  //   navigator.clipboard
+  //     .writeText(JSON.stringify(createPark.data, null, 2))
+  //     .then(() => {
+  //       setCopied(true);
+  //       setTimeout(() => setCopied(false), 2000);
+  //     });
+  // }, [createPark.data]);
 
   const polygonCount = draft.shapes.filter((s) => s.type === "polygon").length;
   const polylineCount = draft.shapes.filter((s) => s.type === "polyline").length;
@@ -219,7 +219,7 @@ function NewPark() {
                     ✓
                   </span>
                 </h2>
-                <div className="ns-payload-wrap">
+                {/* <div className="ns-payload-wrap">
                   <pre className="ns-payload-code">
                     {JSON.stringify(createPark.data, null, 2)}
                   </pre>
@@ -230,7 +230,7 @@ function NewPark() {
                   >
                     {copied ? "✓ Copied" : "Copy JSON"}
                   </button>
-                </div>
+                </div> */}
               </section>
             </>
           )}

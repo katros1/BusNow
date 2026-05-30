@@ -45,7 +45,7 @@ function buildCreatePayload(draft: StopDraft): CreateStopPayload {
 function NewStop() {
   const [draft, setDraft] = useState<StopDraft>({ name: "", shapes: [] });
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  // const [copied, setCopied] = useState(false);
 
   const createStop = useCreateStop();
 
@@ -79,15 +79,15 @@ function NewStop() {
     createStop.mutate(buildCreatePayload(draft));
   }, [draft, createStop]);
 
-  const handleCopyResponse = useCallback(() => {
-    if (!createStop.data) return;
-    navigator.clipboard
-      .writeText(JSON.stringify(createStop.data, null, 2))
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-  }, [createStop.data]);
+  // const handleCopyResponse = useCallback(() => {
+  //   if (!createStop.data) return;
+  //   navigator.clipboard
+  //     .writeText(JSON.stringify(createStop.data, null, 2))
+  //     .then(() => {
+  //       setCopied(true);
+  //       setTimeout(() => setCopied(false), 2000);
+  //     });
+  // }, [createStop.data]);
 
   const polygonCount = draft.shapes.filter((s) => s.type === "polygon").length;
   const polylineCount = draft.shapes.filter((s) => s.type === "polyline").length;
@@ -219,7 +219,7 @@ function NewStop() {
                     ✓
                   </span>
                 </h2>
-                <div className="ns-payload-wrap">
+                {/* <div className="ns-payload-wrap">
                   <pre className="ns-payload-code">
                     {JSON.stringify(createStop.data, null, 2)}
                   </pre>
@@ -230,7 +230,7 @@ function NewStop() {
                   >
                     {copied ? "✓ Copied" : "Copy JSON"}
                   </button>
-                </div>
+                </div> */}
               </section>
             </>
           )}

@@ -47,7 +47,7 @@ export default function Login() {
             <Bus className="h-6 w-6 text-primary" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            IoTS Dashboard
+            BusNow Dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
             Sign in to your account to continue

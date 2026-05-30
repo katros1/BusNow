@@ -121,7 +121,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             collapsed ? "lg:w-0 lg:opacity-0" : "opacity-100"
           )}>
             <p className="truncate text-sm font-bold tracking-tight text-primary">
-              iots
+              BusNow
             </p>
             <p className="truncate text-[10px] font-medium text-muted-foreground">
               Transit Admin

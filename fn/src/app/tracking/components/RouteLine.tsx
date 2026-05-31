@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { stopProgresses, pathProgress, formatDistance } from "../utils/geo";
+import { stopProgresses, pathProgress, formatDistance, lonLatToLatLon } from "../utils/geo";
 import type { RouteDetailDto, VehicleLiveSnapshot } from "../api/tracking.types";
 
 interface RouteLineProps {
@@ -32,7 +32,8 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip }: RouteLinePr
     () => [...routeDetail.stops].sort((a, b) => a.sequence - b.sequence),
     [routeDetail.stops]
   );
-  const path = routeDetail.routePath;
+  // Backend returns [lon, lat] — swap to [lat, lon] for all geo calculations
+  const path = useMemo(() => lonLatToLatLon(routeDetail.routePath), [routeDetail.routePath]);
 
   // Bus position along the route (0–1).
   // Priority: server-computed progressPercent → client-computed from lat/lon → null.

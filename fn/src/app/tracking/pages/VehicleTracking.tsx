@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft, Bus, Clock, Users, Satellite, Map as MapIcon,
   WifiOff, AlertTriangle, MapPin, Navigation, Gauge, ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -34,15 +35,15 @@ function Chip({
 }) {
   return (
     <div className={cn(
-      "flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3",
+      "flex items-center gap-2 sm:gap-3 rounded-xl border border-border/60 bg-card px-3 py-2 sm:px-4 sm:py-3",
       wide ? "col-span-2" : ""
     )}>
-      <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", bg)}>
-        <Icon className={cn("h-4 w-4", color)} />
+      <div className={cn("flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg", bg)}>
+        <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", color)} />
       </div>
       <div className="min-w-0">
-        <p className="text-[16px] font-bold text-foreground leading-none truncate">{value}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{label}</p>
+        <p className="text-[13px] sm:text-[16px] font-bold text-foreground leading-none truncate">{value}</p>
+        <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 truncate">{label}</p>
         {sub && <p className="text-[9px] text-muted-foreground/70 truncate">{sub}</p>}
       </div>
     </div>
@@ -100,7 +101,12 @@ function OccupancyChip({ onBoard, available, capacity }: {
 export default function VehicleTracking() {
   const navigate = useNavigate();
   const { busId } = useParams({ strict: false }) as { busId: string };
+  // routeId passed from the fleet list so the map renders immediately,
+  // before the WebSocket snapshot arrives with its own routeId.
+  const { routeId: routeIdFromUrl } = useSearch({ strict: false }) as { routeId?: string };
   const [tab, setTab] = useState<"passengers" | "map" | "satellite">("passengers");
+  // Collapse header on map/satellite tabs to maximise map area on small screens
+  const [headerExpanded, setHeaderExpanded] = useState(true);
 
   // REST baseline
   const { data: allVehicles = [], isLoading } = useQuery({
@@ -148,19 +154,24 @@ export default function VehicleTracking() {
   const gpsValid = snap?.gpsValid ?? false;
   const gpsStale = snap?.gpsStale ?? false;
 
-  // Route detail — follows live routeId so direction toggle is reflected instantly.
-  // placeholderData keeps the previous route visible while the new one loads,
-  // preventing a flash of "loading" when the bus toggles direction.
-  const routeId = snap?.routeId ?? null;
+  // Route detail:
+  //  1. Live WS snapshot provides routeId (follows direction toggles instantly)
+  //  2. REST vehicle fallback provides routeId (active trip)
+  //  3. URL search param ?routeId= provides it immediately on first render,
+  //     before any snapshot arrives — so the map shows the route right away.
+  const routeId = snap?.routeId ?? routeIdFromUrl ?? null;
+
   const { data: routeDetail } = useQuery({
-    queryKey:        trackingKeys.route(routeId ?? ""),
-    queryFn:         () => trackingApi.getRouteDetail(routeId!),
-    enabled:         !!routeId,
-    staleTime:       120_000,
-    keepPreviousData: true,
+    queryKey: trackingKeys.route(routeId ?? ""),
+    queryFn:  () => trackingApi.getRouteDetail(routeId!),
+    enabled:  !!routeId,
+    staleTime: 120_000,
+    // Keep previous route visible while a new routeId loads (direction toggle)
+    placeholderData: (prev: typeof routeDetail) => prev,
   });
 
-  const mapH = `calc(100vh - ${NAVBAR_H + 48 + 44}px)`;
+  // Auto-collapse header when user switches to map/satellite to give map max space
+  const isMapTab = tab === "map" || tab === "satellite";
 
   // ── Not found ──────────────────────────────────────────────────────────────
   if (!isLoading && !vehicle) {
@@ -187,7 +198,11 @@ export default function VehicleTracking() {
     <div className="-m-5 lg:-m-7 flex flex-col overflow-hidden" style={{ height: `calc(100vh - ${NAVBAR_H}px)` }}>
 
       {/* ══ HEADER ════════════════════════════════════════════════════════════ */}
-      <div className="shrink-0 bg-card border-b border-border/50">
+      <div className={cn(
+        "shrink-0 bg-card border-b border-border/50",
+        // On map tabs: auto-collapse the detail section on small screens
+        isMapTab && "sm:block"
+      )}>
 
         {/* Top bar */}
         <div className="flex items-center gap-3 px-4 py-3">
@@ -242,33 +257,54 @@ export default function VehicleTracking() {
           </div>
         </div>
 
-        {/* ── Route line ─────────────────────────────────────────────────── */}
-        {routeDetail ? (
-          <RouteLine
-            routeDetail={routeDetail}
-            liveEvent={snap}
-            hasActiveTrip={hasTrip}
-            plateNumber={vehicle?.plateNumber ?? ""}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-[136px] text-muted-foreground gap-2">
-            {routeId ? (
-              <>
-                <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                <span className="text-[12px]">Loading route…</span>
-              </>
-            ) : (
-              <>
-                <Bus className="h-4 w-4 opacity-30" />
-                <span className="text-[12px]">No route assigned</span>
-              </>
-            )}
-          </div>
+        {/* ── Collapse toggle — visible on small screens when on map tabs ── */}
+        {isMapTab && (
+          <button
+            onClick={() => setHeaderExpanded(e => !e)}
+            className="flex w-full items-center justify-between px-4 py-1.5 border-t border-border/30 sm:hidden text-muted-foreground hover:bg-muted/40 transition-colors"
+          >
+            <span className="text-[10px] font-medium">
+              {headerExpanded ? "Hide route details" : "Show route details"}
+            </span>
+            <ChevronDown className={cn(
+              "h-3.5 w-3.5 transition-transform duration-200",
+              !headerExpanded && "rotate-180"
+            )} />
+          </button>
         )}
+
+        {/* ── Route line ─────────────────────────────────────────────────── */}
+        <div className={cn(isMapTab && !headerExpanded && "hidden sm:block")}>
+          {routeDetail ? (
+            <RouteLine
+              routeDetail={routeDetail}
+              liveEvent={snap}
+              hasActiveTrip={hasTrip}
+              plateNumber={vehicle?.plateNumber ?? ""}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-20 sm:h-[136px] text-muted-foreground gap-2">
+              {routeId ? (
+                <>
+                  <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                  <span className="text-[12px]">Loading route…</span>
+                </>
+              ) : (
+                <>
+                  <Bus className="h-4 w-4 opacity-30" />
+                  <span className="text-[12px]">No route assigned</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* ── Live stat chips ─────────────────────────────────────────────── */}
         {snap && (
-          <div className="grid grid-cols-2 gap-2.5 px-4 pb-4 pt-3 border-t border-border/40">
+          <div className={cn(
+            "grid grid-cols-2 gap-1.5 sm:gap-2.5 px-3 sm:px-4 pb-3 sm:pb-4 pt-2 sm:pt-3 border-t border-border/40",
+            isMapTab && !headerExpanded && "hidden sm:grid"
+          )}>
             <Chip
               icon={Gauge}
               value={gpsValid && snap.speedKmh != null ? `${Math.round(snap.speedKmh)} km/h` : "—"}
@@ -317,7 +353,8 @@ export default function VehicleTracking() {
       </div>
 
       {/* ══ TABS ══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* min-h-0 lets the flex child shrink below content height so the map fills remaining space */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex flex-col h-full">
 
           <div className="shrink-0 bg-card border-b border-border/50 px-4">
@@ -460,16 +497,16 @@ export default function VehicleTracking() {
             </div>
           </TabsContent>
 
-          {/* ── Map ───────────────────────────────────────────────────────── */}
-          <TabsContent value="map" className="m-0 p-0 flex-1">
+          {/* ── Map (OSM) ─────────────────────────────────────────────────── */}
+          <TabsContent value="map" className="m-0 p-0 flex-1 min-h-0 overflow-hidden">
             <TrackingMapTab mode="plain" routeDetail={routeDetail} liveEvent={snap}
-              plateNumber={vehicle?.plateNumber ?? ""} height={mapH} />
+              plateNumber={vehicle?.plateNumber ?? ""} />
           </TabsContent>
 
-          {/* ── Satellite ─────────────────────────────────────────────────── */}
-          <TabsContent value="satellite" className="m-0 p-0 flex-1">
+          {/* ── Satellite (ESRI) ──────────────────────────────────────────── */}
+          <TabsContent value="satellite" className="m-0 p-0 flex-1 min-h-0 overflow-hidden">
             <TrackingMapTab mode="satellite" routeDetail={routeDetail} liveEvent={snap}
-              plateNumber={vehicle?.plateNumber ?? ""} height={mapH} />
+              plateNumber={vehicle?.plateNumber ?? ""} />
           </TabsContent>
         </Tabs>
       </div>

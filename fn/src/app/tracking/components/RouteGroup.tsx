@@ -184,7 +184,13 @@ export function RouteGroup({ routeCode, vehicles, liveMap }: RouteGroupProps) {
               key={v.busId}
               v={v}
               live={live}
-              onClick={() => navigate({ to: "/tracking/$busId", params: { busId: v.busId } })}
+              onClick={() => navigate({
+                to: "/tracking/$busId",
+                params: { busId: v.busId },
+                // Pass routeId so the detail page can fetch the route immediately,
+                // without waiting for the WebSocket snapshot to arrive.
+                search: { routeId: live?.routeId ?? v.routeId ?? undefined },
+              })}
             />
           ))}
         </div>

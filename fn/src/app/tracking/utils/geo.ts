@@ -15,6 +15,15 @@ export function haversineM(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * The backend returns all geometry as [longitude, latitude] (JTS convention).
+ * Leaflet and all geo.ts helpers expect [latitude, longitude].
+ * Call this once at the consumer boundary before any rendering or calculation.
+ */
+export function lonLatToLatLon(coords: [number, number][]): [number, number][] {
+  return coords.map(([lon, lat]) => [lat, lon]);
+}
+
 export function centroid(coords: [number, number][]): [number, number] {
   const lat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
   const lon = coords.reduce((s, c) => s + c[1], 0) / coords.length;

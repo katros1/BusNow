@@ -419,7 +419,7 @@ class _TopBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'IOTS',
+                'BusNow',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 12,

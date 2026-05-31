@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:client/features/journey_planner/data/datasources/journey_planner_remote_datasource.dart';
 import 'package:client/features/journey_planner/data/repositories/journey_planner_repository_impl.dart';
 import 'package:client/features/journey_planner/domain/entities/journey_entities.dart';
@@ -12,7 +13,7 @@ import 'package:client/features/journey_planner/presentation/notifiers/journey_p
 // ─── HTTP clients ────────────────────────────────────────────────────────────
 
 final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
-      baseUrl: 'http://localhost:8087/api/v1',
+      baseUrl: 'http://192.168.1.14:8087/api/v1',
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     )));
@@ -110,6 +111,36 @@ final routeStopsProvider =
       .toList()
     ..sort((a, b) => a.sequence.compareTo(b.sequence));
   return stops;
+});
+
+// ─── Live vehicle position for a route ───────────────────────────────────────
+// Polls GET /tracking/vehicles every 5 s and returns the position of the first
+// vehicle currently assigned to the given routeId.
+
+final routeVehiclePositionProvider =
+    StreamProvider.family<LatLng?, String>((ref, routeId) async* {
+  Future<LatLng?> fetch() async {
+    try {
+      final response =
+          await ref.read(dioProvider).get('/tracking/vehicles');
+      for (final v in (response.data as List<dynamic>)) {
+        if (v['routeId'] == routeId &&
+            v['latitude'] != null &&
+            v['longitude'] != null) {
+          return LatLng(
+            (v['latitude'] as num).toDouble(),
+            (v['longitude'] as num).toDouble(),
+          );
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  yield await fetch();
+  await for (final _ in Stream.periodic(const Duration(seconds: 5))) {
+    yield await fetch();
+  }
 });
 
 // ─── Selected places (origin + destination) ──────────────────────────────────

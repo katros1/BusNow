@@ -119,6 +119,10 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
     final stopsAsync = ref.watch(
         routeStopsProvider(suggestion.routeId.toString()));
 
+    final liveVehiclePos = ref
+        .watch(routeVehiclePositionProvider(suggestion.routeId.toString()))
+        .value;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitMap(suggestion, originLatLng, destLatLng);
     });
@@ -141,6 +145,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
             destLatLng: destLatLng,
             mapController: _mapController,
             stopsAsync: stopsAsync,
+            liveVehiclePos: liveVehiclePos,
           ),
 
           // ── Top overlay ───────────────────────────────────────────────────
@@ -221,6 +226,7 @@ class _RouteMap extends StatelessWidget {
   final LatLng? destLatLng;
   final MapController mapController;
   final AsyncValue<List<RouteStopPoint>> stopsAsync;
+  final LatLng? liveVehiclePos;
 
   const _RouteMap({
     required this.suggestion,
@@ -228,6 +234,7 @@ class _RouteMap extends StatelessWidget {
     required this.destLatLng,
     required this.mapController,
     required this.stopsAsync,
+    this.liveVehiclePos,
   });
 
   @override
@@ -333,6 +340,19 @@ class _RouteMap extends StatelessWidget {
                   AppColors.error, 38),
           ],
         ),
+
+        // Live bus position — pulsing marker, updated every 5 s
+        if (liveVehiclePos != null)
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: liveVehiclePos!,
+                width: 52,
+                height: 52,
+                child: const _LiveBusMarker(),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -1354,6 +1374,82 @@ class _StepRow extends StatelessWidget {
     );
   }
 }
+
+// ─── Live pulsing bus marker ──────────────────────────────────────────────────
+
+class _LiveBusMarker extends StatefulWidget {
+  const _LiveBusMarker();
+
+  @override
+  State<_LiveBusMarker> createState() => _LiveBusMarkerState();
+}
+
+class _LiveBusMarkerState extends State<_LiveBusMarker>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _pulse = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, child) => Stack(
+        alignment: Alignment.center,
+        children: [
+          // Pulsing ring
+          Container(
+            width: 52 * _pulse.value,
+            height: 52 * _pulse.value,
+            decoration: BoxDecoration(
+              color: AppColors.primary
+                  .withValues(alpha: (1 - _pulse.value) * 0.45),
+              shape: BoxShape.circle,
+            ),
+          ),
+          // Bus circle
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.5),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(LucideIcons.bus,
+                color: Colors.white, size: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Footer stat ─────────────────────────────────────────────────────────────
 
 class _FooterStat extends StatelessWidget {
   final String label;

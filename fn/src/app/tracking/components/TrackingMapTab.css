@@ -1,0 +1,60 @@
+/* ── BusNow vehicle marker ─────────────────────────────────────────────────── */
+
+/* Leaflet sets background/border on .leaflet-div-icon — clear them */
+.busnow-marker {
+  background: none !important;
+  border:     none !important;
+}
+
+.busnow-wrap {
+  position: relative;
+  width:    40px;
+  height:   40px;
+  display:  flex;
+  align-items:     center;
+  justify-content: center;
+}
+
+/* Pulsing ring for active (in-trip) buses */
+.busnow-ring {
+  position:      absolute;
+  inset:         0;
+  border-radius: 50%;
+  border:        2.5px solid;          /* color set inline */
+  animation:     busnow-pulse 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes busnow-pulse {
+  0%   { transform: scale(0.75); opacity: 0.6; }
+  70%  { transform: scale(1.7);  opacity: 0.1; }
+  100% { transform: scale(1.7);  opacity: 0;   }
+}
+
+/* Main icon circle */
+.busnow-circle {
+  width:         32px;
+  height:        32px;
+  border-radius: 50%;
+  border:        2.5px solid white;
+  display:       flex;
+  align-items:     center;
+  justify-content: center;
+  position:      relative;
+  z-index:       1;
+  /* background & box-shadow set inline (dynamic color) */
+}
+
+/* Direction arrow — sits above the circle, rotated around icon centre */
+.busnow-arrow {
+  position:         absolute;
+  top:              0;
+  left:             50%;
+  width:            0;
+  height:           0;
+  border-left:      5px solid transparent;
+  border-right:     5px solid transparent;
+  border-bottom:    9px solid;          /* color set inline */
+  transform-origin: 0 20px;            /* 20 = half of 40px icon  */
+  /* translateX(-50%) + rotate(heading) set inline */
+}

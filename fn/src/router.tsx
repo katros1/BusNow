@@ -123,6 +123,8 @@ const editParkRoute = createRoute({
 
 import TrackingOverview from "./app/tracking/pages/Index";
 import VehicleTracking from "./app/tracking/pages/VehicleTracking";
+import FareSettings from "./app/fare/pages/FareSettings";
+import JourneyPlanner from "./app/journey/pages/JourneyPlanner";
 
 const trackingRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -134,6 +136,18 @@ const vehicleTrackingRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/tracking/$busId",
   component: VehicleTracking,
+});
+
+const fareSettingsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/settings/fare",
+  component: FareSettings,
+});
+
+const journeyPlannerRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/journey-planner",
+  component: JourneyPlanner,
 });
 
 // ── Route tree ─────────────────────────────────────────────────
@@ -154,6 +168,8 @@ const routeTree = rootRoute.addChildren([
     editParkRoute,
     trackingRoute,
     vehicleTrackingRoute,
+    fareSettingsRoute,
+    journeyPlannerRoute,
   ]),
 ]);
 

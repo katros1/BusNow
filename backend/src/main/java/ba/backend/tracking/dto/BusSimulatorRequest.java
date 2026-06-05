@@ -12,5 +12,10 @@ public record BusSimulatorRequest(
         @JsonProperty("dest_lat")   double destLat,
         @JsonProperty("dest_lon")   double destLon,
         @Min(5) @Max(120) @JsonProperty("speed_kmh") double speedKmh,
-        @Min(1) @Max(60)  @JsonProperty("interval_s") int    intervalS
+        @Min(1) @Max(60)  @JsonProperty("interval_s") int    intervalS,
+        // When true the simulator reverses direction at each terminal and keeps running,
+        // simulating a full day of back-and-forth trips. Cumulative paxIn/paxOut never
+        // reset (matching real beam-breaker hardware); the trip snapshot mechanism in
+        // GpsIngestService resets the per-trip onBoard count automatically.
+        @JsonProperty("loop") boolean loop
 ) {}

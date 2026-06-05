@@ -1,5 +1,6 @@
 package ba.backend.plan.service;
 
+import ba.backend.fare.service.FareCalculatorService;
 import ba.backend.plan.dto.JourneyNearestStopRequestDto;
 import ba.backend.plan.dto.JourneyNearestStopResponseDto;
 import ba.backend.plan.dto.JourneyPlanRequestDto;
@@ -13,6 +14,7 @@ import ba.backend.route.repository.RouteRepository;
 import ba.backend.shared.exception.ResourceNotFoundException;
 import ba.backend.shared.geo.LineStringGeometryMapper;
 import ba.backend.stops.repository.StopRepository;
+import ba.backend.tracking.service.GeoUtils;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.locationtech.jts.geom.Coordinate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,17 +46,20 @@ public class JourneyPlannerService {
     private final StopRepository stopRepository;
     private final LineStringGeometryMapper lineStringGeometryMapper;
     private final OsrmClient osrmClient;
+    private final FareCalculatorService fareCalculatorService;
 
     public JourneyPlannerService(
             RouteRepository routeRepository,
             StopRepository stopRepository,
             LineStringGeometryMapper lineStringGeometryMapper,
-            OsrmClient osrmClient
+            OsrmClient osrmClient,
+            FareCalculatorService fareCalculatorService
     ) {
         this.routeRepository = routeRepository;
         this.stopRepository = stopRepository;
         this.lineStringGeometryMapper = lineStringGeometryMapper;
         this.osrmClient = osrmClient;
+        this.fareCalculatorService = fareCalculatorService;
     }
 
     /**
@@ -112,9 +118,11 @@ public class JourneyPlannerService {
                 .toList();
         List<RouteCandidate> selected = eligible.isEmpty() ? enriched : eligible;
 
+        double basePriceFrw = fareCalculatorService.getCurrentBasePriceFrw();
+
         return new JourneyPlanResponseDto(selected.stream()
                 .limit(limit)
-                .map(this::toSuggestion)
+                .map(c -> toSuggestion(c, basePriceFrw))
                 .toList());
     }
 
@@ -226,7 +234,10 @@ public class JourneyPlannerService {
 
     // ── DTO mapping ───────────────────────────────────────────────────────────
 
-    private JourneyPlanResponseDto.JourneyRouteSuggestionDto toSuggestion(RouteCandidate c) {
+    private JourneyPlanResponseDto.JourneyRouteSuggestionDto toSuggestion(RouteCandidate c, double basePriceFrw) {
+        double rideDistanceKm = rideDistanceKm(c);
+        double toEndKm        = boardingToEndKm(c);
+
         return new JourneyPlanResponseDto.JourneyRouteSuggestionDto(
                 c.route().getId(),
                 c.route().getName(),
@@ -251,8 +262,36 @@ public class JourneyPlannerService {
                 c.walkToBoardingMinutes(),
                 c.walkToDestinationMinutes(),
                 c.walkToBoardingMinutes() + c.walkToDestinationMinutes(),
-                toTier(c.totalWalkingKm())
+                toTier(c.totalWalkingKm()),
+                round(rideDistanceKm),
+                fareCalculatorService.calculateFare(basePriceFrw, rideDistanceKm),
+                fareCalculatorService.calculateFare(basePriceFrw, toEndKm)
         );
+    }
+
+    /** Distance along the route polyline from the boarding point to the destination point. */
+    private double rideDistanceKm(RouteCandidate c) {
+        double metres = GeoUtils.distanceAlongLineM(
+                c.route().getGeo(),
+                c.boarding().getLatitude(),    c.boarding().getLongitude(),
+                c.destination().getLatitude(), c.destination().getLongitude()
+        );
+        return metres / 1000.0;
+    }
+
+    /**
+     * Distance along the route from the boarding point to the very last coordinate (end bus park).
+     * This is the worst-case ride length: used to compute the minimum card balance needed to board.
+     */
+    private double boardingToEndKm(RouteCandidate c) {
+        Coordinate[] coords = c.route().getGeo().getCoordinates();
+        Coordinate last = coords[coords.length - 1];
+        double metres = GeoUtils.distanceAlongLineM(
+                c.route().getGeo(),
+                c.boarding().getLatitude(), c.boarding().getLongitude(),
+                last.y, last.x
+        );
+        return metres / 1000.0;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

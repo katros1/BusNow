@@ -18,7 +18,10 @@ public record JourneyPlanResponseDto(
             int walkToBoardingMinutes,
             int walkToDestinationMinutes,
             int totalWalkingMinutes,
-            String tier
+            String tier,
+            double rideDistanceKm,
+            long fareAmount,
+            long requiredCardBalance
     ) {
     }
 

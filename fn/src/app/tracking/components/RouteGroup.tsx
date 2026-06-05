@@ -115,9 +115,26 @@ function BusCard({ v, live, onClick }: {
         </p>
       )}
 
-      {/* ── Row 3: occupancy ── */}
-      {isActive && (
-        <OccupancyBar onBoard={onBoard} capacity={v.capacity ?? null} />
+      {/* ── Row 3: occupancy + seat count ── */}
+      {isActive && v.capacity != null && (
+        <div className="space-y-1">
+          <OccupancyBar onBoard={onBoard} capacity={v.capacity} />
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-muted-foreground">{onBoard} on board</span>
+            {(() => {
+              const free = Math.max(0, v.capacity - onBoard);
+              const pct  = Math.min(100, Math.round((onBoard / v.capacity) * 100));
+              if (free === 0)
+                return <span className="font-bold text-red-600">FULL</span>;
+              if (pct >= 70)
+                return <span className="font-semibold text-yellow-600">{free} seat{free !== 1 ? "s" : ""} left</span>;
+              return <span className="font-semibold text-[#2E6B1A]">{free} seats free</span>;
+            })()}
+          </div>
+        </div>
+      )}
+      {isActive && v.capacity == null && (
+        <OccupancyBar onBoard={onBoard} capacity={null} />
       )}
     </button>
   );

@@ -15,6 +15,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronRight,
+  Navigation,
+  Coins,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,8 +28,9 @@ const NAV_GROUPS = [
   {
     label: "Overview",
     items: [
-      { to: "/",         label: "Dashboard",     icon: LayoutDashboard, badge: null },
-      { to: "/tracking", label: "Live Tracking", icon: RadioTower,      badge: "live" },
+      { to: "/",                  label: "Dashboard",       icon: LayoutDashboard, badge: null },
+      { to: "/tracking",          label: "Live Tracking",   icon: RadioTower,      badge: "live" },
+      { to: "/journey-planner",   label: "Journey Planner", icon: Navigation,      badge: null },
     ],
   },
   {
@@ -38,6 +41,12 @@ const NAV_GROUPS = [
       { to: "/routes",   label: "Routes",    icon: Route,         badge: null },
       { to: "/stops",    label: "Stops",     icon: MapPin,        badge: null },
       { to: "/parks",    label: "Parks",     icon: ParkingCircle, badge: null },
+    ],
+  },
+  {
+    label: "Configuration",
+    items: [
+      { to: "/settings/fare", label: "Fare Settings", icon: Coins, badge: null },
     ],
   },
 ] as const;

@@ -97,6 +97,39 @@ function OccupancyChip({ onBoard, available, capacity }: {
   );
 }
 
+// ── Seat availability badge ───────────────────────────────────────────────────
+// Shown in the top bar so passengers always see availability at a glance.
+// Color: green (seats free) → yellow (< 30% left) → red (full / 1 seat left)
+function SeatBadge({ onBoard, available, capacity }: {
+  onBoard: number; available: number | null; capacity: number;
+}) {
+  const free  = available ?? Math.max(0, capacity - onBoard);
+  const pct   = Math.min(100, Math.round((onBoard / capacity) * 100));
+  const isFull = free === 0;
+  const isLow  = !isFull && pct >= 70;
+
+  if (isFull) {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2 py-0.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+        <span className="text-[9px] font-bold text-red-700">FULL</span>
+      </span>
+    );
+  }
+  if (isLow) {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-yellow-50 border border-yellow-200 px-2 py-0.5">
+        <span className="text-[9px] font-bold text-yellow-700">{free} seat{free !== 1 ? "s" : ""}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-[#2E6B1A]/8 border border-[#2E6B1A]/15 px-2 py-0.5">
+      <span className="text-[9px] font-semibold text-[#2E6B1A]">{free} seats</span>
+    </span>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function VehicleTracking() {
   const navigate = useNavigate();
@@ -243,6 +276,16 @@ export default function VehicleTracking() {
                 <span className="text-[9px] font-bold text-yellow-700">No GPS</span>
               </span>
             )}
+
+            {/* ── Seat availability — always visible when trip is active ── */}
+            {hasTrip && snap && vehicle?.capacity != null && (
+              <SeatBadge
+                onBoard={snap.passengersOnBoard}
+                available={snap.availableSeats}
+                capacity={vehicle.capacity}
+              />
+            )}
+
             {connected ? (
               <span className="flex items-center gap-1 rounded-full bg-[#2E6B1A]/10 border border-[#2E6B1A]/20 px-2 py-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#91D06C] pulse-live" />

@@ -11,5 +11,10 @@ public record SimulatorStatusResponse(
         double currentHeading,
         double speedKmh,
         int    intervalS,
-        double routeDistanceKm
+        double routeDistanceKm,
+        int    estimatedOnBoard,   // cumulativePaxIn − cumulativePaxOut for current leg
+        int    busCapacity,        // from iots_bus.bus_capacity
+        int    tripCount,          // how many legs completed so far (0 = first leg running)
+        int    cumulativePaxIn,    // total boardings since simulator started (cumulative)
+        int    cumulativePaxOut    // total alightings since simulator started (cumulative)
 ) {}

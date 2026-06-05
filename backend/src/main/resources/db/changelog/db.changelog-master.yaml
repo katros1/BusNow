@@ -21,3 +21,7 @@ databaseChangeLog:
       file: db/changelog/changes/010-add-last-route-to-bus.sql
   - include:
       file: db/changelog/changes/011-create-user-profile-table.sql
+  - include:
+      file: db/changelog/changes/012-create-fare-settings.sql
+  - include:
+      file: db/changelog/changes/013-fix-fare-settings-default.sql

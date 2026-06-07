@@ -29,5 +29,6 @@ public record VehicleLiveSnapshot(
         int     passengersOnBoard,
         Integer availableSeats,
         UUID    tripId,
+        Instant tripStartedAt,
         Instant timestamp
 ) {}

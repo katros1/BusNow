@@ -72,11 +72,11 @@ public class GpsIngestService {
             UUID busId = trip.getBus().getId();
             BusState state = BusState.empty()
                     .withTrip(trip.getId(), trip.getRoute().getId(),
-                            trip.getSnapshotIn(), trip.getSnapshotOut());
+                            trip.getSnapshotIn(), trip.getSnapshotOut(), trip.getStartedAt());
             UUID lastRoute = trip.getBus().getLastCompletedRouteId();
             if (lastRoute != null) {
                 state = new BusState(state.activeTripId(), state.activeRouteId(), lastRoute,
-                        null, null, state.snapshotIn(), state.snapshotOut(), 0, null, null);
+                        null, null, state.snapshotIn(), state.snapshotOut(), 0, trip.getStartedAt(), null, null);
             }
             busStates.put(busId, state);
         });
@@ -266,7 +266,7 @@ public class GpsIngestService {
                     trip.getId(), bus.getPlateNumber(),
                     pendingRoute.getStartBusPark() != null ? pendingRoute.getStartBusPark().getName() : "?",
                     pendingRoute.getName());
-            return state.withTrip(trip.getId(), pendingRoute.getId(), snapIn, snapOut);
+            return state.withTrip(trip.getId(), pendingRoute.getId(), snapIn, snapOut, trip.getStartedAt());
         } catch (Exception e) {
             log.error("Failed to start trip for bus {}: {}", bus.getPlateNumber(), e.getMessage());
         }
@@ -377,7 +377,7 @@ public class GpsIngestService {
                 true, false,
                 stopRes.currentStopName(), nextStopName,
                 distToNextStop, distToTerminal, progressPct,
-                onBoard, avail, state.activeTripId(), timestamp);
+                onBoard, avail, state.activeTripId(), state.tripStartedAt(), timestamp);
     }
 
     private VehicleLiveSnapshot buildNoFixSnapshot(BusEntity bus, List<RouteEntity> routes,
@@ -402,7 +402,7 @@ public class GpsIngestService {
                 prev != null ? prev.progressPercent()     : null,
                 prev != null ? prev.passengersOnBoard()   : 0,
                 prev != null ? prev.availableSeats()      : bus.getCapacity(),
-                state.activeTripId(), timestamp);
+                state.activeTripId(), state.tripStartedAt(), timestamp);
     }
 
     // ── Misc helpers ──────────────────────────────────────────────────────────
@@ -414,14 +414,14 @@ public class GpsIngestService {
                     .orElse(null);
             if (active != null) {
                 state = state.withTrip(active.getId(), active.getRoute().getId(),
-                        active.getSnapshotIn(), active.getSnapshotOut());
+                        active.getSnapshotIn(), active.getSnapshotOut(), active.getStartedAt());
             }
         }
         if (state.lastCompletedRouteId() == null && bus.getLastCompletedRouteId() != null) {
             state = new BusState(state.activeTripId(), state.activeRouteId(),
                     bus.getLastCompletedRouteId(), state.pendingRouteId(), state.inBusParkId(),
                     state.snapshotIn(), state.snapshotOut(),
-                    state.lastPassedStopSeq(), state.lastSeenAt(), state.lastSnapshot());
+                    state.lastPassedStopSeq(), state.tripStartedAt(), state.lastSeenAt(), state.lastSnapshot());
         }
         return state;
     }
@@ -474,46 +474,47 @@ public class GpsIngestService {
             int                 snapshotIn,
             int                 snapshotOut,
             int                 lastPassedStopSeq,
+            Instant             tripStartedAt,
             Instant             lastSeenAt,
             VehicleLiveSnapshot lastSnapshot
     ) {
         static BusState empty() {
-            return new BusState(null, null, null, null, null, 0, 0, 0, null, null);
+            return new BusState(null, null, null, null, null, 0, 0, 0, null, null, null);
         }
 
         BusState withGeofence(UUID parkId) {
             return new BusState(activeTripId, activeRouteId, lastCompletedRouteId,
-                    pendingRouteId, parkId, snapshotIn, snapshotOut, lastPassedStopSeq, lastSeenAt, lastSnapshot);
+                    pendingRouteId, parkId, snapshotIn, snapshotOut, lastPassedStopSeq, tripStartedAt, lastSeenAt, lastSnapshot);
         }
 
         BusState withPendingRoute(UUID routeId) {
             return new BusState(activeTripId, activeRouteId, lastCompletedRouteId,
-                    routeId, inBusParkId, snapshotIn, snapshotOut, lastPassedStopSeq, lastSeenAt, lastSnapshot);
+                    routeId, inBusParkId, snapshotIn, snapshotOut, lastPassedStopSeq, tripStartedAt, lastSeenAt, lastSnapshot);
         }
 
-        BusState withTrip(UUID tripId, UUID routeId, int snapIn, int snapOut) {
+        BusState withTrip(UUID tripId, UUID routeId, int snapIn, int snapOut, Instant startedAt) {
             return new BusState(tripId, routeId, lastCompletedRouteId,
-                    null, inBusParkId, snapIn, snapOut, lastPassedStopSeq, lastSeenAt, lastSnapshot);
+                    null, inBusParkId, snapIn, snapOut, lastPassedStopSeq, startedAt, lastSeenAt, lastSnapshot);
         }
 
         BusState withTripCleared(UUID completedRouteId) {
             return new BusState(null, null, completedRouteId,
-                    null, inBusParkId, 0, 0, 0, lastSeenAt, lastSnapshot);
+                    null, inBusParkId, 0, 0, 0, null, lastSeenAt, lastSnapshot);
         }
 
         BusState withTripClearedAndPending(UUID completedRouteId, UUID newPendingRouteId) {
             return new BusState(null, null, completedRouteId,
-                    newPendingRouteId, inBusParkId, 0, 0, 0, lastSeenAt, lastSnapshot);
+                    newPendingRouteId, inBusParkId, 0, 0, 0, null, lastSeenAt, lastSnapshot);
         }
 
         BusState withStop(int passedSeq) {
             return new BusState(activeTripId, activeRouteId, lastCompletedRouteId,
-                    pendingRouteId, inBusParkId, snapshotIn, snapshotOut, passedSeq, lastSeenAt, lastSnapshot);
+                    pendingRouteId, inBusParkId, snapshotIn, snapshotOut, passedSeq, tripStartedAt, lastSeenAt, lastSnapshot);
         }
 
         BusState withSeen(Instant t, VehicleLiveSnapshot snap) {
             return new BusState(activeTripId, activeRouteId, lastCompletedRouteId,
-                    pendingRouteId, inBusParkId, snapshotIn, snapshotOut, lastPassedStopSeq, t, snap);
+                    pendingRouteId, inBusParkId, snapshotIn, snapshotOut, lastPassedStopSeq, tripStartedAt, t, snap);
         }
     }
 }

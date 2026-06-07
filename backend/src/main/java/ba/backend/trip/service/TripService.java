@@ -83,12 +83,22 @@ public class TripService {
 
         TripEntity existing = tripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE).orElse(null);
         if (existing != null) {
-            log.info("Adopting existing active trip {} for bus {}", existing.getId(), bus.getPlateNumber());
-            if (vehicleTripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE).isEmpty()) {
-                log.warn("Active trip exists in iots_trip but missing in vehicle_trips. Synchronizing history...");
-                vehicleTripRepository.save(new VehicleTripEntity(bus, existing.getRoute(), TripStatus.ACTIVE, existing.getStartedAt(), 0, 0, 0));
+            // If the route has changed, close the stale trip and fall through to create a new one
+            if (!existing.getRoute().getId().equals(route.getId())) {
+                log.warn("Bus {} has active trip on route '{}' but requesting route '{}' — completing stale trip {}",
+                        bus.getPlateNumber(), existing.getRoute().getName(), route.getName(), existing.getId());
+                existing.complete(Instant.now(), existing.getSnapshotIn(), existing.getSnapshotOut());
+                tripRepository.save(existing);
+                vehicleTripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE)
+                        .ifPresent(vt -> { vt.complete(Instant.now(), 0, 0, 0); vehicleTripRepository.save(vt); });
+            } else {
+                log.info("Adopting existing active trip {} for bus {}", existing.getId(), bus.getPlateNumber());
+                if (vehicleTripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE).isEmpty()) {
+                    log.warn("Active trip exists in iots_trip but missing in vehicle_trips. Synchronizing history...");
+                    vehicleTripRepository.save(new VehicleTripEntity(bus, existing.getRoute(), TripStatus.ACTIVE, existing.getStartedAt(), 0, 0, 0));
+                }
+                return existing;
             }
-            return existing;
         }
 
         Instant now = Instant.now();

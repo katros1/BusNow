@@ -54,6 +54,6 @@ public class StalenessChecker {
                 s.currentStopName(), s.nextStopName(),
                 s.distanceToNextStopM(), s.distanceToTerminalM(), s.progressPercent(),
                 s.passengersOnBoard(), s.availableSeats(),
-                s.tripId(), Instant.now());
+                s.tripId(), s.tripStartedAt(), Instant.now());
     }
 }

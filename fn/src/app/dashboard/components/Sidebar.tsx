@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Navigation,
   Coins,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/",                  label: "Dashboard",       icon: LayoutDashboard, badge: null },
       { to: "/tracking",          label: "Live Tracking",   icon: RadioTower,      badge: "live" },
+      { to: "/trips",             label: "Trip History",    icon: History,         badge: null },
       { to: "/journey-planner",   label: "Journey Planner", icon: Navigation,      badge: null },
     ],
   },

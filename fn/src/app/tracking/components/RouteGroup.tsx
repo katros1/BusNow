@@ -112,6 +112,11 @@ function BusCard({ v, live, onClick }: {
       {!isActive && (
         <p className="text-[11px] text-muted-foreground">
           {v.routeName ?? "No route assigned"}
+          {v.capacity != null && (
+            <span className="ml-2 text-[10px] bg-muted rounded px-1.5 py-0.5">
+              {v.capacity} seats · idle
+            </span>
+          )}
         </p>
       )}
 

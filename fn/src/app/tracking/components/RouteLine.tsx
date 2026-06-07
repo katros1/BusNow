@@ -81,9 +81,15 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip }: RouteLinePr
               {distToNext != null && <span className="text-muted-foreground"> · {formatDistance(distToNext)}</span>}
             </span>
           ) : distToTerm != null ? (
-            <span className="text-muted-foreground">→ {routeDetail.endBusPark.name} · {formatDistance(distToTerm)}</span>
+            <span className="text-orange-600 font-semibold">
+              ⚑ Approaching {routeDetail.endBusPark.name} · {formatDistance(distToTerm)}
+            </span>
+          ) : liveEvent?.gpsValid === false ? (
+            <span className="text-muted-foreground">GPS lost</span>
+          ) : liveEvent?.gpsValid === true ? (
+            <span className="text-muted-foreground">Between stops</span>
           ) : (
-            <span className="text-muted-foreground">{liveEvent?.gpsValid === false ? "GPS lost" : "Awaiting position…"}</span>
+            <span className="text-muted-foreground">Awaiting position…</span>
           )}
         </div>
 

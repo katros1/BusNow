@@ -23,7 +23,7 @@ function elapsed(ts: string | null | undefined): string {
   if (!ts) return "—";
   const s = Math.max(0, Math.floor((Date.now() - new Date(ts).getTime()) / 1000));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return h > 0 ? `${h}h ${m}m` : m === 0 ? "<1m" : `${m}m`;
 }
 
 // ── Small stat chip ───────────────────────────────────────────────────────────
@@ -178,6 +178,7 @@ export default function VehicleTracking() {
       passengersOnBoard:   vehicle.passengersOnBoard ?? 0,
       availableSeats:      vehicle.availableSeats ?? null,
       tripId:              vehicle.activeTripId ?? null,
+      tripStartedAt:       vehicle.tripStartedAt ?? null,
       timestamp:           new Date().toISOString(),
     };
   }, [live, vehicle]);
@@ -357,26 +358,52 @@ export default function VehicleTracking() {
             />
             <Chip
               icon={MapPin}
-              value={snap.currentStopName ?? (hasTrip ? "In transit" : "At terminal")}
-              label="Current stop"
+              value={
+                snap.currentStopName
+                  ? snap.currentStopName
+                  : !hasTrip
+                    ? "At terminal"
+                    : (snap.progressPercent ?? 0) >= 95
+                      ? routeDetail?.endBusPark.name ?? "At terminal"
+                      : "In transit"
+              }
+              label={
+                snap.currentStopName
+                  ? "At stop"
+                  : !hasTrip
+                    ? "Terminal"
+                    : (snap.progressPercent ?? 0) >= 95
+                      ? "Arrived at terminal"
+                      : "Current stop"
+              }
               color="text-[#2E6B1A]"
               bg="bg-[#2E6B1A]/8"
             />
             <Chip
               icon={Navigation}
-              value={snap.nextStopName ?? (hasTrip ? routeDetail?.endBusPark.name ?? "Terminal" : "—")}
-              label={snap.distanceToNextStopM != null
-                ? `Next · ${formatDistance(snap.distanceToNextStopM)}`
-                : snap.distanceToTerminalM != null
-                  ? `Terminal · ${formatDistance(snap.distanceToTerminalM)}`
-                  : "Next stop"}
-              color="text-muted-foreground"
-              bg="bg-muted"
+              value={
+                snap.nextStopName != null
+                  ? snap.nextStopName
+                  : hasTrip
+                    ? (routeDetail?.endBusPark.name ?? "Terminal")
+                    : "—"
+              }
+              label={
+                snap.nextStopName != null
+                  ? (snap.distanceToNextStopM != null ? `Next · ${formatDistance(snap.distanceToNextStopM)}` : "Next stop")
+                  : hasTrip && snap.distanceToTerminalM != null
+                    ? `Approaching terminal · ${formatDistance(snap.distanceToTerminalM)}`
+                    : hasTrip
+                      ? "Approaching terminal"
+                      : "Next stop"
+              }
+              color={snap.nextStopName == null && hasTrip ? "text-orange-600" : "text-muted-foreground"}
+              bg={snap.nextStopName == null && hasTrip ? "bg-orange-50" : "bg-muted"}
             />
             {hasTrip ? (
               <Chip
                 icon={Clock}
-                value={elapsed(snap.timestamp)}
+                value={elapsed(snap.tripStartedAt ?? vehicle?.tripStartedAt)}
                 label="Trip duration"
                 color="text-primary"
                 bg="bg-primary/8"
@@ -477,7 +504,7 @@ export default function VehicleTracking() {
                     </div>
                   </div>
 
-                  {/* Next stop banner */}
+                  {/* Next stop banner — approaching a stop */}
                   {snap.nextStopName && !snap.currentStopName && (
                     <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -490,6 +517,22 @@ export default function VehicleTracking() {
                           {formatDistance(snap.distanceToNextStopM)}
                         </span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Terminal approach banner — no more stops */}
+                  {!snap.nextStopName && !snap.currentStopName && snap.distanceToTerminalM != null && (
+                    <div className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+                      <span className="text-lg shrink-0">🏁</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-orange-700 font-semibold">Approaching terminal</p>
+                        <p className="text-[13px] font-bold text-orange-900 truncate">
+                          {routeDetail?.endBusPark.name ?? "End terminal"}
+                        </p>
+                      </div>
+                      <span className="text-[12px] font-semibold text-orange-700 shrink-0">
+                        {formatDistance(snap.distanceToTerminalM)}
+                      </span>
                     </div>
                   )}
 

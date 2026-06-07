@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Bus,
   Route,
@@ -8,7 +9,8 @@ import {
   Activity,
   Zap,
   ArrowUpRight,
-  TrendingUp,
+  History,
+  Users,
 } from "lucide-react";
 
 import { routesApi } from "../routes/api/routes.api";
@@ -21,6 +23,8 @@ import { stopsApi } from "../stops/api/stops.api";
 import { stopKeys } from "../stops/api/stops.keys";
 import { parksApi } from "../parks/api/parks.api";
 import { parkKeys } from "../parks/api/parks.keys";
+import { trackingApi } from "../tracking/api/tracking.api";
+import { trackingKeys } from "../tracking/api/tracking.keys";
 
 // ── Stat card ─────────────────────────────────────────────────
 
@@ -71,17 +75,27 @@ function StatCard({ title, value, icon: Icon, isLoading, trend, iconBg, iconColo
 // ── Dashboard ─────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: routes,  isLoading: loadingRoutes  } = useQuery(routeKeys.lists(),  { queryFn: () => routesApi.getAll() });
   const { data: drivers, isLoading: loadingDrivers } = useQuery(driverKeys.lists(), { queryFn: () => driversApi.getAll() });
   const { data: buses,   isLoading: loadingBuses   } = useQuery(busKeys.lists(),    { queryFn: () => busesApi.getAll() });
   const { data: stops,   isLoading: loadingStops   } = useQuery(stopKeys.lists(),   { queryFn: () => stopsApi.getAll() });
   const { data: parks,   isLoading: loadingParks   } = useQuery(parkKeys.lists(),   { queryFn: () => parksApi.getAll() });
+  const { data: liveVehicles = [] } = useQuery({
+    queryKey: trackingKeys.vehicles(),
+    queryFn: trackingApi.getVehicles,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
 
   const routeItems  = routes?.content  ?? [];
   const driverItems = drivers?.content ?? [];
   const busItems    = buses?.content   ?? [];
   const stopItems   = stops?.content   ?? [];
   const parkItems   = parks?.content   ?? [];
+
+  const activeTrips       = liveVehicles.filter(v => v.activeTripId).length;
+  const passengersInTransit = liveVehicles.reduce((s, v) => s + (v.passengersOnBoard ?? 0), 0);
 
   return (
     <div className="space-y-7 max-w-7xl mx-auto w-full">
@@ -158,6 +172,32 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* ── Live ops strip ───────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#2E6B1A]/20 bg-[#2E6B1A]/5 px-5 py-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2E6B1A]/15">
+            <Activity className="h-5 w-5 text-[#2E6B1A]" />
+          </div>
+          <div>
+            <p className="text-[28px] font-bold text-[#2E6B1A] leading-none">{activeTrips}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Active trips right now</p>
+          </div>
+          <span className="ml-auto flex items-center gap-1 text-[9px] font-bold text-[#2E6B1A]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#91D06C] pulse-live" />
+            LIVE
+          </span>
+        </div>
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-[28px] font-bold text-primary leading-none">{passengersInTransit}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Passengers in transit</p>
+          </div>
+        </div>
+      </div>
+
       {/* ── Lower grid ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
@@ -168,9 +208,12 @@ export default function Dashboard() {
               <h3 className="text-[15px] font-bold text-foreground">Fleet Live Status</h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">Real-time GPS sync & driver activity</p>
             </div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[12px] font-bold hover:bg-primary/20 transition-colors border border-primary/15">
+            <button
+              onClick={() => navigate({ to: "/tracking" })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[12px] font-bold hover:bg-primary/20 transition-colors border border-primary/15"
+            >
               <Zap className="h-3 w-3" />
-              Sync Fleet
+              Live Tracking
             </button>
           </div>
 
@@ -229,13 +272,14 @@ export default function Dashboard() {
           </div>
           <div className="p-3 flex flex-col gap-1">
             {[
-              { icon: Bus,       label: "Register New Bus",  desc: "Add a vehicle to fleet tracking" },
-              { icon: UserRound, label: "Add Driver",        desc: "Create a new driver profile" },
-              { icon: Route,     label: "Map Route",         desc: "Draw a trajectory on the map" },
-              { icon: TrendingUp,label: "System Logs",       desc: "View server connectivity logs" },
-            ].map((action, i) => (
+              { icon: Bus,       label: "Register New Bus",  desc: "Add a vehicle to fleet tracking",   to: "/buses" },
+              { icon: UserRound, label: "Add Driver",        desc: "Create a new driver profile",       to: "/drivers" },
+              { icon: Route,     label: "Map Route",         desc: "Draw a trajectory on the map",      to: "/routes/new" },
+              { icon: History,   label: "View Trip History", desc: "Browse all trips & passenger data", to: "/trips" },
+            ].map((action) => (
               <button
-                key={i}
+                key={action.to}
+                onClick={() => navigate({ to: action.to })}
                 className="flex items-start gap-3.5 p-3 rounded-xl hover:bg-surface-container/60 transition-colors text-left group"
               >
                 <div className="h-9 w-9 shrink-0 bg-primary/8 text-primary rounded-lg flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">

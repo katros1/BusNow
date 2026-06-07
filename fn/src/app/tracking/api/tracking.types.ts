@@ -19,6 +19,7 @@ export interface VehicleLiveSnapshot {
   passengersOnBoard: number;
   availableSeats: number | null;
   tripId: string | null;
+  tripStartedAt: string | null;
   timestamp: string;
 }
 
@@ -73,7 +74,7 @@ export interface TrackingVehicleDto {
   routeCode: string | null;
   direction: string | null;
   activeTripId: string | null;
-  tripStartedAt: string | null;
+  tripStartedAt: string | null;   // ISO instant of when the current trip started
   passengersOnBoard: number | null;
   availableSeats: number | null;
 }

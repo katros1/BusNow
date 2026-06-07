@@ -125,6 +125,7 @@ import TrackingOverview from "./app/tracking/pages/Index";
 import VehicleTracking from "./app/tracking/pages/VehicleTracking";
 import FareSettings from "./app/fare/pages/FareSettings";
 import JourneyPlanner from "./app/journey/pages/JourneyPlanner";
+import TripsList from "./app/trips/pages/TripsList";
 
 const trackingRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -150,6 +151,12 @@ const journeyPlannerRoute = createRoute({
   component: JourneyPlanner,
 });
 
+const tripsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "/trips",
+  component: TripsList,
+});
+
 // ── Route tree ─────────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -168,6 +175,7 @@ const routeTree = rootRoute.addChildren([
     editParkRoute,
     trackingRoute,
     vehicleTrackingRoute,
+    tripsRoute,
     fareSettingsRoute,
     journeyPlannerRoute,
   ]),

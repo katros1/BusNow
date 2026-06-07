@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -119,10 +120,14 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
     final stopsAsync = ref.watch(
         routeStopsProvider(suggestion.routeId.toString()));
 
-    final liveVehicles = ref
-        .watch(routeVehiclesForPassengerProvider(
-            (suggestion.routeId.toString(), suggestion.boardingPoint.sequence)))
+    final allLiveVehicles = ref
+        .watch(routeVehiclesForPassengerProvider(suggestion.routeId.toString()))
         .value ?? [];
+    final continuedPlates = ref.watch(continuedTrackingPlatesProvider);
+    final boardingSeq = suggestion.boardingPoint.sequence;
+    final liveVehicles = allLiveVehicles.where((v) =>
+        v.lastPassedStopSeq <= boardingSeq ||
+        continuedPlates.contains(v.plateNumber)).toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitMap(suggestion, originLatLng, destLatLng);
@@ -241,36 +246,31 @@ class _RouteMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final boarding = suggestion.boardingPoint.coordinates;
+    final boarding  = suggestion.boardingPoint.coordinates;
     final alighting = suggestion.destinationPoint.coordinates;
-    final stopsInRange = stopsAsync.value?.where((s) =>
-            s.sequence > suggestion.boardingPoint.sequence &&
-            s.sequence < suggestion.destinationPoint.sequence) ??
-        [];
 
     return FlutterMap(
       mapController: mapController,
       options: MapOptions(
         initialCenter: boarding,
-        initialZoom: 13,
+        initialZoom: 14,
         interactionOptions:
             const InteractionOptions(flags: InteractiveFlag.all),
       ),
       children: [
         TileLayer(
-          urlTemplate:
-              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.iots.client',
           maxZoom: 19,
         ),
 
-        // Walk: origin → boarding
+        // Walk: origin → boarding (dashed)
         if (originLatLng != null)
           PolylineLayer(polylines: [
             Polyline(
               points: [originLatLng!, boarding],
-              color: _kWalkGreen.withValues(alpha: 0.75),
-              strokeWidth: 3,
+              color: _kWalkGreen.withValues(alpha: 0.7),
+              strokeWidth: 2.5,
               pattern: const StrokePattern.dotted(),
             ),
           ]),
@@ -286,70 +286,36 @@ class _RouteMap extends StatelessWidget {
           ),
         ]),
 
-        // Walk: alighting → destination
+        // Walk: alighting → destination (dashed)
         if (destLatLng != null)
           PolylineLayer(polylines: [
             Polyline(
               points: [alighting, destLatLng!],
-              color: _kAlightOrange.withValues(alpha: 0.75),
-              strokeWidth: 3,
+              color: _kAlightOrange.withValues(alpha: 0.7),
+              strokeWidth: 2.5,
               pattern: const StrokePattern.dotted(),
             ),
           ]),
 
-        // Intermediate stop markers
-        MarkerLayer(
-          markers: stopsInRange.map((s) {
-            return Marker(
-              point: s.coordinates,
-              width: 14,
-              height: 14,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: _kRouteBlue,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-
-        // Key markers
+        // Key markers only — no intermediate stop dots to avoid clutter
         MarkerLayer(
           markers: [
             if (originLatLng != null)
-              _pinMarker(originLatLng!, LucideIcons.navigation2,
-                  _kWalkGreen, 38),
-            _pinMarker(
-                boarding,
-                suggestion.boardingPoint.isBusPark
-                    ? LucideIcons.building2
-                    : LucideIcons.bus,
-                _kWalkGreen,
-                46,
-                outlined: true),
-            _pinMarker(
-                alighting,
-                suggestion.destinationPoint.isBusPark
-                    ? LucideIcons.building2
-                    : LucideIcons.bus,
-                _kAlightOrange,
-                46,
-                outlined: true),
+              _pinMarker(originLatLng!, LucideIcons.navigation2, _kWalkGreen, 38),
+            _pinMarker(boarding, LucideIcons.logIn, _kWalkGreen, 46, outlined: true),
+            _pinMarker(alighting, LucideIcons.logOut, _kAlightOrange, 46, outlined: true),
             if (destLatLng != null)
-              _pinMarker(destLatLng!, LucideIcons.mapPin,
-                  AppColors.error, 38),
+              _pinMarker(destLatLng!, LucideIcons.mapPin, AppColors.error, 38),
           ],
         ),
 
-        // Live bus markers — one per qualifying vehicle, realtime via WebSocket
+        // Live bus triangles — pointing in heading direction, realtime
         if (liveVehicles.isNotEmpty)
           MarkerLayer(
             markers: liveVehicles.map((v) => Marker(
               point: v.latLng,
-              width: 56,
-              height: 56,
+              width: 48,
+              height: 48,
               child: _LiveBusMarker(heading: v.headingDeg),
             )).toList(),
           ),
@@ -584,22 +550,6 @@ class _DetailSheet extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 12),
-
-                // Track live button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => context.push('/tracking'),
-                    icon: const Icon(LucideIcons.navigation, size: 16),
-                    label: const Text('Track Live Vehicle'),
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -1417,66 +1367,72 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
 
   @override
   Widget build(BuildContext context) {
-    final headingRad = widget.heading != null
-        ? widget.heading! * math.pi / 180
-        : null;
+    final headingRad = (widget.heading ?? 0) * math.pi / 180;
 
     return AnimatedBuilder(
       animation: _pulse,
       builder: (context, child) => Stack(
         alignment: Alignment.center,
         children: [
-          // Pulsing ring
+          // Pulsing glow ring
           Container(
-            width: 56 * _pulse.value,
-            height: 56 * _pulse.value,
+            width: 54 * _pulse.value,
+            height: 54 * _pulse.value,
             decoration: BoxDecoration(
               color: AppColors.primary
-                  .withValues(alpha: (1 - _pulse.value) * 0.45),
+                  .withValues(alpha: (1 - _pulse.value) * 0.35),
               shape: BoxShape.circle,
             ),
           ),
-          // Heading arrow
-          if (headingRad != null)
-            Transform.rotate(
-              angle: headingRad,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  width: 5,
-                  height: 12,
-                  margin: const EdgeInsets.only(bottom: 28),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(3)),
-                  ),
-                ),
+          // Rotating triangle — points in heading direction
+          Transform.rotate(
+            angle: headingRad,
+            child: CustomPaint(
+              size: const Size(38, 38),
+              painter: _TrianglePainter(
+                color: AppColors.primary,
+                borderColor: Colors.white,
               ),
             ),
-          // Bus circle
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.5),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: const Icon(LucideIcons.bus,
-                color: Colors.white, size: 15),
           ),
         ],
       ),
     );
   }
+}
+
+// Draws a solid triangle pointing UP (north = 0°); rotate for heading
+class _TrianglePainter extends CustomPainter {
+  final Color color;
+  final Color borderColor;
+  const _TrianglePainter({required this.color, required this.borderColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r  = size.width / 2;
+
+    final path = ui.Path()
+      ..moveTo(cx,              cy - r)           // tip (north)
+      ..lineTo(cx + r * 0.82,  cy + r * 0.60)    // bottom-right
+      ..lineTo(cx - r * 0.82,  cy + r * 0.60)    // bottom-left
+      ..close();
+
+    canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TrianglePainter old) =>
+      old.color != color || old.borderColor != borderColor;
 }
 
 // ─── Live vehicles section ────────────────────────────────────────────────────
@@ -1600,116 +1556,193 @@ class _LiveVehiclesSection extends StatelessWidget {
   }
 }
 
-class _LiveVehicleRow extends StatelessWidget {
+class _LiveVehicleRow extends ConsumerWidget {
   final RouteVehicleSnap vehicle;
   const _LiveVehicleRow({required this.vehicle});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final speed = vehicle.speedKmh != null
         ? '${vehicle.speedKmh!.round()} km/h'
         : null;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Bus icon
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
+    return InkWell(
+      onTap: () => _showContinueDialog(context, ref),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Triangle indicator (mimics map marker)
+            SizedBox(
+              width: 34,
+              height: 34,
+              child: CustomPaint(
+                painter: _TrianglePainter(
+                  color: AppColors.primary,
+                  borderColor: Colors.white,
+                ),
+              ),
             ),
-            child: const Icon(LucideIcons.bus,
-                size: 16, color: AppColors.primary),
-          ),
-          const SizedBox(width: 10),
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 10),
+            // Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        vehicle.plateNumber,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                      if (speed != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(speed,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.onSurfaceVariant,
+                              )),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  // Current → next stop
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.mapPin,
+                          size: 11, color: AppColors.onSurfaceVariant),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          _stopText(vehicle),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.onSurfaceVariant),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Passengers
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    const Icon(LucideIcons.users,
+                        size: 11, color: AppColors.onSurfaceVariant),
+                    const SizedBox(width: 3),
                     Text(
-                      vehicle.plateNumber,
+                      '${vehicle.passengersOnBoard}',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
                       ),
                     ),
-                    if (speed != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(speed,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.onSurfaceVariant,
-                            )),
-                      ),
-                    ],
                   ],
                 ),
-                const SizedBox(height: 3),
-                // Current → next stop
-                Row(
-                  children: [
-                    const Icon(LucideIcons.mapPin,
-                        size: 11, color: AppColors.onSurfaceVariant),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        _stopText(vehicle),
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+                const Text('on board',
+                    style: TextStyle(
+                        fontSize: 9, color: AppColors.onSurfaceVariant)),
               ],
             ),
-          ),
-          // Passengers
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(LucideIcons.users,
-                      size: 11, color: AppColors.onSurfaceVariant),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${vehicle.passengersOnBoard}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showContinueDialog(BuildContext context, WidgetRef ref) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-              const Text('on board',
-                  style: TextStyle(
-                      fontSize: 9, color: AppColors.onSurfaceVariant)),
-            ],
+              child: const Icon(LucideIcons.bus,
+                  size: 18, color: AppColors.primary),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                vehicle.plateNumber,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This bus has passed your boarding stop.',
+              style: TextStyle(fontSize: 14, color: AppColors.onSurface),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _stopText(vehicle),
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Do you want to keep tracking it?',
+              style: TextStyle(fontSize: 13, color: AppColors.onSurface),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Dismiss',
+                style: TextStyle(color: AppColors.onSurfaceVariant)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Continue Tracking'),
           ),
         ],
       ),
     );
+
+    if (result == true) {
+      ref
+          .read(continuedTrackingPlatesProvider.notifier)
+          .add(vehicle.plateNumber);
+    }
   }
 
   String _stopText(RouteVehicleSnap v) {

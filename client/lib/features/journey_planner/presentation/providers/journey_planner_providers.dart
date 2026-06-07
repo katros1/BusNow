@@ -168,18 +168,28 @@ class RouteVehicleSnap {
   LatLng get latLng => LatLng(lat, lon);
 }
 
+// ─── Continued-tracking plates ────────────────────────────────────────────────
+// Plates the passenger has chosen to keep visible after passing their boarding stop.
+
+final class _ContinuedTrackingNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+  void add(String plate)    => state = {...state, plate};
+  void remove(String plate) => state = state.where((p) => p != plate).toSet();
+}
+
+final continuedTrackingPlatesProvider =
+    NotifierProvider<_ContinuedTrackingNotifier, Set<String>>(
+        _ContinuedTrackingNotifier.new);
+
 // ─── Realtime passenger vehicles provider ─────────────────────────────────────
-// Connects via WebSocket to the backend's /ws/tracking endpoint and subscribes
-// to the given routeId. Filters the stream to only emit buses that:
-//   1. Have an active trip (hasTrip = true)
-//   2. Have valid, non-stale GPS
-//   3. Have NOT yet passed the passenger's boarding stop (lastPassedStopSeq <= boardingSeq)
-//
-// The param tuple is (routeId, boardingStopSequence).
+// Connects via WebSocket, subscribes to ALL buses on the given routeId, and
+// emits every bus that has an active trip + valid non-stale GPS.
+// Boarding-stop filtering and "continue tracking" logic live in the UI layer
+// so they can react to user decisions without restarting the WebSocket.
 
 final routeVehiclesForPassengerProvider =
-    StreamProvider.family<List<RouteVehicleSnap>, (String, int)>((ref, args) {
-  final (routeId, boardingSeq) = args;
+    StreamProvider.family<List<RouteVehicleSnap>, String>((ref, routeId) {
   final dio = ref.read(dioProvider);
 
   final base = dio.options.baseUrl;
@@ -195,12 +205,12 @@ final routeVehiclesForPassengerProvider =
   Timer? retryTimer;
   bool disposed = false;
 
-  void emitFiltered() {
+  void emit() {
     if (controller.isClosed || disposed) return;
-    final filtered = snapsByPlate.values.where((s) =>
-        s.hasTrip && s.gpsValid && !s.gpsStale &&
-        s.hasPosition && s.lastPassedStopSeq <= boardingSeq).toList();
-    controller.add(filtered);
+    final active = snapsByPlate.values
+        .where((s) => s.hasTrip && s.gpsValid && !s.gpsStale && s.hasPosition)
+        .toList();
+    controller.add(active);
   }
 
   Future<void> connect() async {
@@ -221,9 +231,10 @@ final routeVehiclesForPassengerProvider =
           try {
             final msg = jsonDecode(data as String) as Map<String, dynamic>;
             if (msg['type'] == 'snapshot' && msg['data'] != null) {
-              final snap = RouteVehicleSnap.fromJson(msg['data'] as Map<String, dynamic>);
+              final snap = RouteVehicleSnap.fromJson(
+                  msg['data'] as Map<String, dynamic>);
               snapsByPlate[snap.plateNumber] = snap;
-              emitFiltered();
+              emit();
             }
           } catch (_) {}
         },

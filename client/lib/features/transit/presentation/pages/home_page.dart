@@ -280,9 +280,9 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                       Expanded(
                         child: _QuickCard(
                           icon: LucideIcons.map,
-                          label: 'Live\nTracking',
+                          label: 'Plan\nJourney',
                           color: AppColors.primary,
-                          onTap: () => context.push('/tracking'),
+                          onTap: () => context.push('/search'),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -318,7 +318,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                           to: 'Remera',
                           time: '5 min',
                           isFirst: true,
-                          onTap: () => context.push('/tracking'),
+                          onTap: () => context.push('/search'),
                         ),
                         const Divider(
                             height: 1,
@@ -329,7 +329,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                           to: 'Nyabugogo',
                           time: '12 min',
                           isLast: true,
-                          onTap: () => context.push('/tracking'),
+                          onTap: () => context.push('/search'),
                         ),
                       ],
                     ),

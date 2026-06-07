@@ -205,14 +205,19 @@ public class GpsIngestService {
     }
 
     /**
-     * Route assignment and trip start, driven by bus park geofence.
+     * Route assignment and trip start.
      *
-     * Phase A — bus inside a startBusPark:
-     *   Set pendingRouteId for that route so the UI shows the route name while parked.
+     * Phase A — bus near/inside a startBusPark:
+     *   Set pendingRouteId so the UI shows the upcoming route while the bus is parked.
      *   No trip is started yet.
      *
-     * Phase B — bus has a pendingRoute and is no longer inside its startBusPark:
+     * Phase B — bus has a pendingRoute and has moved away from its startBusPark:
      *   Bus has departed → start the trip now.
+     *
+     * Detection uses three layers in order:
+     *   1. Polygon containment (precise, fails when coordinates are swapped in DB)
+     *   2. Proximity to polygon centroid (robust fallback — tolerates swapped lon/lat)
+     *   3. Proximity to route LineString start point (works even with no bus-park polygon)
      */
     private BusState handleTripStart(BusState state, double lat, double lon,
             VehiclePayload.Passengers pax, BusEntity bus, List<RouteEntity> routes) {
@@ -221,34 +226,24 @@ public class GpsIngestService {
         log.debug("handleTripStart — bus={} lat={} lon={} routes={} pendingRoute={}",
                 bus.getPlateNumber(), lat, lon, routes.size(), state.pendingRouteId());
 
-        // Phase A: check each route's startBusPark geofence
+        // Phase A: detect which startBusPark (if any) the bus is currently at
         for (RouteEntity r : routes) {
             if (r.getStartBusPark() == null) {
-                log.warn("Route '{}' has no startBusPark — skipping geofence check", r.getName());
+                log.warn("Route '{}' has no startBusPark — skipping", r.getName());
                 continue;
             }
-            if (r.getStartBusPark().getPolygon() == null) {
-                log.warn("Route '{}' startBusPark '{}' has null polygon — skipping geofence check",
-                        r.getName(), r.getStartBusPark().getName());
-                continue;
-            }
-            try {
-                boolean inside = geofenceService.contains(r.getStartBusPark().getPolygon(), lat, lon);
-                log.debug("Route '{}' startBusPark '{}' contains ({},{}) = {}",
-                        r.getName(), r.getStartBusPark().getName(), lat, lon, inside);
-                if (inside) {
-                    if (r.getId().equals(state.pendingRouteId())) return state; // already pending, bus still parked
-                    log.info("Bus {} entered start park '{}' → pending route '{}'",
-                            bus.getPlateNumber(), r.getStartBusPark().getName(), r.getName());
-                    return state.withPendingRoute(r.getId());
-                }
-            } catch (Exception e) {
-                log.error("Geofence check failed for route '{}' startBusPark '{}': {}",
-                        r.getName(), r.getStartBusPark().getName(), e.getMessage(), e);
+            boolean atStart = isNearPark(r.getStartBusPark().getPolygon(), r.getGeo(), true, lat, lon);
+            log.debug("Route '{}' startBusPark '{}' near-check ({},{}) = {}",
+                    r.getName(), r.getStartBusPark().getName(), lat, lon, atStart);
+            if (atStart) {
+                if (r.getId().equals(state.pendingRouteId())) return state; // still parked, no change
+                log.info("Bus {} at start park '{}' → pending route '{}'",
+                        bus.getPlateNumber(), r.getStartBusPark().getName(), r.getName());
+                return state.withPendingRoute(r.getId());
             }
         }
 
-        // Phase B: bus is outside all startBusPark geofences — if pending route set, depart and start trip
+        // Phase B: no route's startBusPark matches — if a pending route is set, the bus has departed
         if (state.pendingRouteId() == null) return state;
 
         RouteEntity pendingRoute = routes.stream()
@@ -258,11 +253,18 @@ public class GpsIngestService {
 
         if (pendingRoute == null) return state;
 
+        // Safety: if bus is somehow still at the start park, don't start yet
+        if (pendingRoute.getStartBusPark() != null
+                && isNearPark(pendingRoute.getStartBusPark().getPolygon(),
+                              pendingRoute.getGeo(), true, lat, lon)) {
+            return state;
+        }
+
         int snapIn  = pax != null ? pax.getIn()  : 0;
         int snapOut = pax != null ? pax.getOut() : 0;
         try {
             TripEntity trip = tripService.startTrip(bus, pendingRoute, snapIn, snapOut, 0);
-            log.info("Trip {} started — bus {} departed from '{}' → route '{}'",
+            log.info("Trip {} started — bus {} departed '{}' → route '{}'",
                     trip.getId(), bus.getPlateNumber(),
                     pendingRoute.getStartBusPark() != null ? pendingRoute.getStartBusPark().getName() : "?",
                     pendingRoute.getName());
@@ -273,50 +275,83 @@ public class GpsIngestService {
         return state;
     }
 
+    /**
+     * Returns true if (lat, lon) is inside or within PARK_RADIUS_M of a bus park.
+     *
+     * Tries three strategies in order:
+     *   1. Polygon containment
+     *   2. Distance to polygon centroid (handles swapped lat/lon in PostGIS)
+     *   3. Distance to the first (useStart=true) or last (false) point of the route LineString
+     *
+     * @param polygon   bus-park polygon (may be null)
+     * @param routeGeo  route LineString (may be null)
+     * @param useStart  true → use first point of route; false → use last point
+     */
+    private boolean isNearPark(org.locationtech.jts.geom.Polygon polygon,
+                               org.locationtech.jts.geom.LineString routeGeo,
+                               boolean useStart, double lat, double lon) {
+        // 1. Polygon containment
+        if (polygon != null) {
+            try {
+                if (geofenceService.contains(polygon, lat, lon)) return true;
+            } catch (Exception ignored) {}
+
+            // 2. Centroid proximity — tolerates swapped coordinates stored in DB
+            try {
+                org.locationtech.jts.geom.Point c = polygon.getCentroid();
+                double rawY = c.getY(), rawX = c.getX();
+                double cLat, cLon;
+                // Heuristic: if Y looks like a large longitude (> 10°) and X like a small latitude (< 5°),
+                // the ring was stored with lon/lat swapped.
+                if (Math.abs(rawY) > 10 && Math.abs(rawX) < 5) {
+                    cLat = rawX; cLon = rawY;
+                } else {
+                    cLat = rawY; cLon = rawX;
+                }
+                if (GeoUtils.haversineM(lat, lon, cLat, cLon) <= PARK_RADIUS_M) return true;
+            } catch (Exception ignored) {}
+        }
+
+        // 3. Route LineString endpoint proximity
+        if (routeGeo != null && routeGeo.getNumPoints() > 0) {
+            try {
+                org.locationtech.jts.geom.Coordinate[] pts = routeGeo.getCoordinates();
+                org.locationtech.jts.geom.Coordinate pt = useStart ? pts[0] : pts[pts.length - 1];
+                // JTS stores (lon, lat) in X/Y — but check both orderings
+                double ptLat = pt.y, ptLon = pt.x;
+                if (GeoUtils.haversineM(lat, lon, ptLat, ptLon) <= PARK_RADIUS_M) return true;
+                // Also try swapped (in case stored as lat, lon)
+                if (Math.abs(pt.y) > 10 && Math.abs(pt.x) < 5) {
+                    if (GeoUtils.haversineM(lat, lon, pt.x, pt.y) <= PARK_RADIUS_M) return true;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return false;
+    }
+
     // ── Geofence helper ───────────────────────────────────────────────────────
 
     private static final double PARK_RADIUS_M = 250.0;
 
     private UUID parkGeofenceCheck(double lat, double lon, BusState state, List<RouteEntity> routes) {
-        // Primary: polygon containment — check active end park first
+        // Check active route's end park first (most likely match during an active trip)
         if (state.activeRouteId() != null) {
             RouteEntity active = findActiveRoute(state, routes);
             if (active != null && active.getEndBusPark() != null
-                    && active.getEndBusPark().getPolygon() != null) {
-                try {
-                    if (geofenceService.contains(active.getEndBusPark().getPolygon(), lat, lon)) {
-                        return active.getEndBusPark().getId();
-                    }
-                } catch (Exception ignored) {}
+                    && isNearPark(active.getEndBusPark().getPolygon(), active.getGeo(), false, lat, lon)) {
+                return active.getEndBusPark().getId();
             }
         }
+        // Then check all route start/end parks
         for (RouteEntity r : routes) {
-            try {
-                if (r.getStartBusPark() != null && r.getStartBusPark().getPolygon() != null
-                        && geofenceService.contains(r.getStartBusPark().getPolygon(), lat, lon)) {
-                    return r.getStartBusPark().getId();
-                }
-                if (r.getEndBusPark() != null && r.getEndBusPark().getPolygon() != null
-                        && geofenceService.contains(r.getEndBusPark().getPolygon(), lat, lon)) {
-                    return r.getEndBusPark().getId();
-                }
-            } catch (Exception ignored) {}
-        }
-
-        // Fallback: proximity to route LineString endpoints (handles swapped polygon coords)
-        for (RouteEntity r : routes) {
-            if (r.getGeo() == null) continue;
-            org.locationtech.jts.geom.Coordinate[] pts = r.getGeo().getCoordinates();
-            if (pts.length < 2) continue;
-            if (r.getStartBusPark() != null) {
-                if (GeoUtils.haversineM(lat, lon, pts[0].y, pts[0].x) <= PARK_RADIUS_M) {
-                    return r.getStartBusPark().getId();
-                }
+            if (r.getStartBusPark() != null
+                    && isNearPark(r.getStartBusPark().getPolygon(), r.getGeo(), true, lat, lon)) {
+                return r.getStartBusPark().getId();
             }
-            if (r.getEndBusPark() != null) {
-                if (GeoUtils.haversineM(lat, lon, pts[pts.length - 1].y, pts[pts.length - 1].x) <= PARK_RADIUS_M) {
-                    return r.getEndBusPark().getId();
-                }
+            if (r.getEndBusPark() != null
+                    && isNearPark(r.getEndBusPark().getPolygon(), r.getGeo(), false, lat, lon)) {
+                return r.getEndBusPark().getId();
             }
         }
         return null;

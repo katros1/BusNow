@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,7 +18,7 @@ import 'package:client/features/journey_planner/presentation/notifiers/journey_p
 // ─── HTTP clients ────────────────────────────────────────────────────────────
 
 final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
-      baseUrl: 'http://192.168.1.14:8087/api/v1',
+      baseUrl: 'http://localhost:8087/api/v1',
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     )));
@@ -113,34 +118,144 @@ final routeStopsProvider =
   return stops;
 });
 
-// ─── Live vehicle position for a route ───────────────────────────────────────
-// Polls GET /tracking/vehicles every 5 s and returns the position of the first
-// vehicle currently assigned to the given routeId.
+// ─── Realtime vehicle snapshot model (passenger-facing) ──────────────────────
 
-final routeVehiclePositionProvider =
-    StreamProvider.family<LatLng?, String>((ref, routeId) async* {
-  Future<LatLng?> fetch() async {
+class RouteVehicleSnap {
+  final String plateNumber;
+  final double lat;
+  final double lon;
+  final double? headingDeg;
+  final double? speedKmh;
+  final bool gpsValid;
+  final bool gpsStale;
+  final String? currentStopName;
+  final String? nextStopName;
+  final int passengersOnBoard;
+  final int lastPassedStopSeq;
+  final bool hasTrip;
+
+  const RouteVehicleSnap({
+    required this.plateNumber,
+    required this.lat,
+    required this.lon,
+    this.headingDeg,
+    this.speedKmh,
+    this.gpsValid = false,
+    this.gpsStale = false,
+    this.currentStopName,
+    this.nextStopName,
+    this.passengersOnBoard = 0,
+    this.lastPassedStopSeq = 0,
+    this.hasTrip = false,
+  });
+
+  factory RouteVehicleSnap.fromJson(Map<String, dynamic> j) => RouteVehicleSnap(
+        plateNumber: j['plateNumber'] as String? ?? '',
+        lat: (j['latitude'] as num?)?.toDouble() ?? 0,
+        lon: (j['longitude'] as num?)?.toDouble() ?? 0,
+        headingDeg: (j['headingDeg'] as num?)?.toDouble(),
+        speedKmh: (j['speedKmh'] as num?)?.toDouble(),
+        gpsValid: j['gpsValid'] as bool? ?? false,
+        gpsStale: j['gpsStale'] as bool? ?? false,
+        currentStopName: j['currentStopName'] as String?,
+        nextStopName: j['nextStopName'] as String?,
+        passengersOnBoard: j['passengersOnBoard'] as int? ?? 0,
+        lastPassedStopSeq: j['lastPassedStopSeq'] as int? ?? 0,
+        hasTrip: j['tripId'] != null,
+      );
+
+  bool get hasPosition => lat != 0 || lon != 0;
+  LatLng get latLng => LatLng(lat, lon);
+}
+
+// ─── Realtime passenger vehicles provider ─────────────────────────────────────
+// Connects via WebSocket to the backend's /ws/tracking endpoint and subscribes
+// to the given routeId. Filters the stream to only emit buses that:
+//   1. Have an active trip (hasTrip = true)
+//   2. Have valid, non-stale GPS
+//   3. Have NOT yet passed the passenger's boarding stop (lastPassedStopSeq <= boardingSeq)
+//
+// The param tuple is (routeId, boardingStopSequence).
+
+final routeVehiclesForPassengerProvider =
+    StreamProvider.family<List<RouteVehicleSnap>, (String, int)>((ref, args) {
+  final (routeId, boardingSeq) = args;
+  final dio = ref.read(dioProvider);
+
+  final base = dio.options.baseUrl;
+  final wsUrl = base
+      .replaceFirst(RegExp(r'/api/v1/?$'), '')
+      .replaceFirst('http://', 'ws://')
+      .replaceFirst('https://', 'wss://');
+
+  final controller = StreamController<List<RouteVehicleSnap>>();
+  final snapsByPlate = <String, RouteVehicleSnap>{};
+  WebSocket? ws;
+  Timer? pingTimer;
+  Timer? retryTimer;
+  bool disposed = false;
+
+  void emitFiltered() {
+    if (controller.isClosed || disposed) return;
+    final filtered = snapsByPlate.values.where((s) =>
+        s.hasTrip && s.gpsValid && !s.gpsStale &&
+        s.hasPosition && s.lastPassedStopSeq <= boardingSeq).toList();
+    controller.add(filtered);
+  }
+
+  Future<void> connect() async {
+    if (disposed) return;
     try {
-      final response =
-          await ref.read(dioProvider).get('/tracking/vehicles');
-      for (final v in (response.data as List<dynamic>)) {
-        if (v['routeId'] == routeId &&
-            v['latitude'] != null &&
-            v['longitude'] != null) {
-          return LatLng(
-            (v['latitude'] as num).toDouble(),
-            (v['longitude'] as num).toDouble(),
-          );
-        }
+      ws = await WebSocket.connect('$wsUrl/ws/tracking');
+      if (disposed) { ws?.close(); return; }
+
+      ws!.add(jsonEncode({'type': 'subscribeRoute', 'routeIds': [routeId]}));
+
+      pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+        if (!disposed) ws?.add(jsonEncode({'type': 'ping'}));
+      });
+
+      ws!.listen(
+        (data) {
+          if (disposed) return;
+          try {
+            final msg = jsonDecode(data as String) as Map<String, dynamic>;
+            if (msg['type'] == 'snapshot' && msg['data'] != null) {
+              final snap = RouteVehicleSnap.fromJson(msg['data'] as Map<String, dynamic>);
+              snapsByPlate[snap.plateNumber] = snap;
+              emitFiltered();
+            }
+          } catch (_) {}
+        },
+        onDone: () {
+          if (!disposed) {
+            retryTimer = Timer(const Duration(seconds: 3), connect);
+          }
+        },
+        cancelOnError: true,
+      );
+    } catch (_) {
+      if (!disposed) {
+        controller.add([]);
+        retryTimer = Timer(
+          Duration(seconds: math.min(snapsByPlate.isEmpty ? 2 : 10, 30)),
+          connect,
+        );
       }
-    } catch (_) {}
-    return null;
+    }
   }
 
-  yield await fetch();
-  await for (final _ in Stream.periodic(const Duration(seconds: 5))) {
-    yield await fetch();
-  }
+  connect();
+
+  ref.onDispose(() {
+    disposed = true;
+    pingTimer?.cancel();
+    retryTimer?.cancel();
+    ws?.close();
+    if (!controller.isClosed) controller.close();
+  });
+
+  return controller.stream;
 });
 
 // ─── Selected places (origin + destination) ──────────────────────────────────

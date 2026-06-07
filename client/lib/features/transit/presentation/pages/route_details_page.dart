@@ -119,9 +119,10 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
     final stopsAsync = ref.watch(
         routeStopsProvider(suggestion.routeId.toString()));
 
-    final liveVehiclePos = ref
-        .watch(routeVehiclePositionProvider(suggestion.routeId.toString()))
-        .value;
+    final liveVehicles = ref
+        .watch(routeVehiclesForPassengerProvider(
+            (suggestion.routeId.toString(), suggestion.boardingPoint.sequence)))
+        .value ?? [];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fitMap(suggestion, originLatLng, destLatLng);
@@ -145,7 +146,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
             destLatLng: destLatLng,
             mapController: _mapController,
             stopsAsync: stopsAsync,
-            liveVehiclePos: liveVehiclePos,
+            liveVehicles: liveVehicles,
           ),
 
           // ── Top overlay ───────────────────────────────────────────────────
@@ -208,6 +209,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
               destLabel: destLabel,
               scrollController: sc,
               stopsAsync: stopsAsync,
+              liveVehicles: liveVehicles,
               onViewSteps: () =>
                   _scaffoldKey.currentState?.openEndDrawer(),
             ),
@@ -226,7 +228,7 @@ class _RouteMap extends StatelessWidget {
   final LatLng? destLatLng;
   final MapController mapController;
   final AsyncValue<List<RouteStopPoint>> stopsAsync;
-  final LatLng? liveVehiclePos;
+  final List<RouteVehicleSnap> liveVehicles;
 
   const _RouteMap({
     required this.suggestion,
@@ -234,7 +236,7 @@ class _RouteMap extends StatelessWidget {
     required this.destLatLng,
     required this.mapController,
     required this.stopsAsync,
-    this.liveVehiclePos,
+    required this.liveVehicles,
   });
 
   @override
@@ -341,17 +343,15 @@ class _RouteMap extends StatelessWidget {
           ],
         ),
 
-        // Live bus position — pulsing marker, updated every 5 s
-        if (liveVehiclePos != null)
+        // Live bus markers — one per qualifying vehicle, realtime via WebSocket
+        if (liveVehicles.isNotEmpty)
           MarkerLayer(
-            markers: [
-              Marker(
-                point: liveVehiclePos!,
-                width: 52,
-                height: 52,
-                child: const _LiveBusMarker(),
-              ),
-            ],
+            markers: liveVehicles.map((v) => Marker(
+              point: v.latLng,
+              width: 56,
+              height: 56,
+              child: _LiveBusMarker(heading: v.headingDeg),
+            )).toList(),
           ),
       ],
     );
@@ -425,6 +425,7 @@ class _DetailSheet extends StatelessWidget {
   final String destLabel;
   final ScrollController scrollController;
   final AsyncValue<List<RouteStopPoint>> stopsAsync;
+  final List<RouteVehicleSnap> liveVehicles;
   final VoidCallback onViewSteps;
 
   const _DetailSheet({
@@ -433,6 +434,7 @@ class _DetailSheet extends StatelessWidget {
     required this.destLabel,
     required this.scrollController,
     required this.stopsAsync,
+    required this.liveVehicles,
     required this.onViewSteps,
   });
 
@@ -521,6 +523,11 @@ class _DetailSheet extends StatelessWidget {
 
                 // Stats row
                 _StatsRow(suggestion: suggestion),
+
+                const SizedBox(height: 20),
+
+                // ── Live vehicles approaching your boarding stop ───────────
+                _LiveVehiclesSection(vehicles: liveVehicles),
 
                 const SizedBox(height: 20),
 
@@ -1378,7 +1385,8 @@ class _StepRow extends StatelessWidget {
 // ─── Live pulsing bus marker ──────────────────────────────────────────────────
 
 class _LiveBusMarker extends StatefulWidget {
-  const _LiveBusMarker();
+  final double? heading;
+  const _LiveBusMarker({this.heading});
 
   @override
   State<_LiveBusMarker> createState() => _LiveBusMarkerState();
@@ -1409,6 +1417,10 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
 
   @override
   Widget build(BuildContext context) {
+    final headingRad = widget.heading != null
+        ? widget.heading! * math.pi / 180
+        : null;
+
     return AnimatedBuilder(
       animation: _pulse,
       builder: (context, child) => Stack(
@@ -1416,18 +1428,36 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
         children: [
           // Pulsing ring
           Container(
-            width: 52 * _pulse.value,
-            height: 52 * _pulse.value,
+            width: 56 * _pulse.value,
+            height: 56 * _pulse.value,
             decoration: BoxDecoration(
               color: AppColors.primary
                   .withValues(alpha: (1 - _pulse.value) * 0.45),
               shape: BoxShape.circle,
             ),
           ),
+          // Heading arrow
+          if (headingRad != null)
+            Transform.rotate(
+              angle: headingRad,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  width: 5,
+                  height: 12,
+                  margin: const EdgeInsets.only(bottom: 28),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3)),
+                  ),
+                ),
+              ),
+            ),
           // Bus circle
           Container(
-            width: 30,
-            height: 30,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: AppColors.primary,
               shape: BoxShape.circle,
@@ -1441,11 +1471,254 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
               ],
             ),
             child: const Icon(LucideIcons.bus,
-                color: Colors.white, size: 14),
+                color: Colors.white, size: 15),
           ),
         ],
       ),
     );
+  }
+}
+
+// ─── Live vehicles section ────────────────────────────────────────────────────
+
+class _LiveVehiclesSection extends StatelessWidget {
+  final List<RouteVehicleSnap> vehicles;
+  const _LiveVehiclesSection({required this.vehicles});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: vehicles.isEmpty
+              ? AppColors.outlineVariant
+              : AppColors.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: vehicles.isEmpty
+                        ? AppColors.surfaceContainerLow
+                        : AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    LucideIcons.bus,
+                    size: 16,
+                    color: vehicles.isEmpty
+                        ? AppColors.onSurfaceVariant
+                        : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vehicles.isEmpty
+                            ? 'No buses approaching yet'
+                            : '${vehicles.length} bus${vehicles.length == 1 ? '' : 'es'} approaching',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: vehicles.isEmpty
+                              ? AppColors.onSurfaceVariant
+                              : AppColors.onSurface,
+                        ),
+                      ),
+                      Text(
+                        'Live · updates in realtime',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                // Live dot
+                if (vehicles.isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      )
+                          .animate(onPlay: (c) => c.repeat())
+                          .scaleXY(begin: 0.6, end: 1.2, duration: 900.ms,
+                              curve: Curves.easeInOut)
+                          .then()
+                          .scaleXY(begin: 1.2, end: 0.6, duration: 900.ms,
+                              curve: Curves.easeInOut),
+                      const SizedBox(width: 4),
+                      const Text('LIVE',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          )),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          // ── Vehicle rows ─────────────────────────────────────────────────
+          if (vehicles.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: AppColors.outlineVariant),
+            ...vehicles.map((v) => _LiveVehicleRow(vehicle: v)),
+          ] else
+            const Padding(
+              padding: EdgeInsets.fromLTRB(14, 8, 14, 14),
+              child: Text(
+                'Buses will appear here once they are on the route and heading your way.',
+                style: TextStyle(
+                    fontSize: 12, color: AppColors.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveVehicleRow extends StatelessWidget {
+  final RouteVehicleSnap vehicle;
+  const _LiveVehicleRow({required this.vehicle});
+
+  @override
+  Widget build(BuildContext context) {
+    final speed = vehicle.speedKmh != null
+        ? '${vehicle.speedKmh!.round()} km/h'
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bus icon
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(LucideIcons.bus,
+                size: 16, color: AppColors.primary),
+          ),
+          const SizedBox(width: 10),
+          // Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      vehicle.plateNumber,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    if (speed != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(speed,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.onSurfaceVariant,
+                            )),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                // Current → next stop
+                Row(
+                  children: [
+                    const Icon(LucideIcons.mapPin,
+                        size: 11, color: AppColors.onSurfaceVariant),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        _stopText(vehicle),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Passengers
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(LucideIcons.users,
+                      size: 11, color: AppColors.onSurfaceVariant),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${vehicle.passengersOnBoard}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const Text('on board',
+                  style: TextStyle(
+                      fontSize: 9, color: AppColors.onSurfaceVariant)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _stopText(RouteVehicleSnap v) {
+    if (v.currentStopName != null && v.nextStopName != null) {
+      return 'At ${v.currentStopName} → ${v.nextStopName}';
+    }
+    if (v.currentStopName != null) return 'At ${v.currentStopName}';
+    if (v.nextStopName != null) return 'Heading to ${v.nextStopName}';
+    return 'In transit';
   }
 }
 

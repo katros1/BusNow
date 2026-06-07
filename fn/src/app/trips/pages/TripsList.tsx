@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity, Bus, Users, Clock, ArrowRight, CheckCircle2,
   ChevronLeft, ChevronRight as ChevronRightIcon, TrendingUp, Filter, RefreshCw,
@@ -193,8 +193,10 @@ function TripCard({ trip }: { trip: TripSummaryDto }) {
 const PAGE_SIZE = 15;
 
 export default function TripsList() {
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<TripStatus | "ALL">("ALL");
   const [page, setPage] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const params = useMemo(() => ({
     status: statusFilter !== "ALL" ? statusFilter : undefined,
@@ -202,12 +204,18 @@ export default function TripsList() {
     size: PAGE_SIZE,
   }), [statusFilter, page]);
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: tripKeys.list(params),
     queryFn: () => tripsApi.list(params),
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: tripKeys.all() });
+    setIsRefreshing(false);
+  }
 
   const trips = data?.content ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -236,12 +244,12 @@ export default function TripsList() {
         </div>
 
         <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+          onClick={handleRefresh}
+          disabled={isRefreshing || isFetching}
+          className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-3 py-1.5 text-[12px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
-          Refresh
+          <RefreshCw className={cn("h-3.5 w-3.5", (isRefreshing || isFetching) && "animate-spin")} />
+          {isRefreshing ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 

@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -68,9 +67,10 @@ public class TrackingWebSocketHandler extends TextWebSocketHandler {
         try {
             JsonNode node = objectMapper.readTree(message.getPayload());
             switch (node.path("type").asText("")) {
-                case "subscribe" -> handleSubscribe(session, node);
-                case "ping"      -> send(session, Map.of("type", "pong"));
-                default          -> { /* ignore unknown */ }
+                case "subscribe"      -> handleSubscribe(session, node);
+                case "subscribeRoute" -> handleSubscribeRoute(session, node);
+                case "ping"           -> send(session, Map.of("type", "pong"));
+                default               -> { /* ignore unknown */ }
             }
         } catch (Exception e) {
             log.debug("Bad WS message from {}: {}", session.getId(), e.getMessage());
@@ -111,6 +111,23 @@ public class TrackingWebSocketHandler extends TextWebSocketHandler {
                 .ifPresent(snap -> sendSnapshot(session, snap));
     }
 
+    private void handleSubscribeRoute(WebSocketSession session, JsonNode node) {
+        JsonNode routeIdsNode = node.path("routeIds");
+        if (!routeIdsNode.isArray()) return;
+
+        for (JsonNode r : routeIdsNode) {
+            String routeId = r.asText("").trim();
+            if (routeId.isEmpty()) continue;
+            registry.subscribeRoute(session.getId(), routeId);
+            // Push current snapshots for all buses on this route
+            ingestService.getBusStates().values().stream()
+                    .map(GpsIngestService.BusState::lastSnapshot)
+                    .filter(s -> s != null && s.routeId() != null
+                            && routeId.equals(s.routeId().toString()))
+                    .forEach(snap -> sendSnapshot(session, snap));
+        }
+    }
+
     // ── Push from Redis relay ─────────────────────────────────────────────────
 
     /**
@@ -127,6 +144,23 @@ public class TrackingWebSocketHandler extends TextWebSocketHandler {
                     if (session.isOpen()) session.sendMessage(msg);
                 } catch (IOException e) {
                     log.warn("Failed to push to session {}: {}", session.getId(), e.getMessage());
+                    registry.unregister(session.getId());
+                }
+            }
+        }
+    }
+
+    /** Pushes a snapshot to all sessions subscribed to this route (for passenger-facing apps). */
+    public void pushToRoute(String routeId, VehicleLiveSnapshot snapshot) {
+        TextMessage msg = buildSnapshotMessage(snapshot);
+        if (msg == null) return;
+
+        for (WebSocketSession session : registry.getSessionsForRoute(routeId)) {
+            synchronized (session) {
+                try {
+                    if (session.isOpen()) session.sendMessage(msg);
+                } catch (IOException e) {
+                    log.warn("Failed to push route snapshot to session {}: {}", session.getId(), e.getMessage());
                     registry.unregister(session.getId());
                 }
             }

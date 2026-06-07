@@ -412,6 +412,7 @@ public class GpsIngestService {
                 true, false,
                 stopRes.currentStopName(), nextStopName,
                 distToNextStop, distToTerminal, progressPct,
+                state.lastPassedStopSeq(),
                 onBoard, avail, state.activeTripId(), state.tripStartedAt(), timestamp);
     }
 
@@ -435,6 +436,7 @@ public class GpsIngestService {
                 prev != null ? prev.distanceToNextStopM() : null,
                 prev != null ? prev.distanceToTerminalM() : null,
                 prev != null ? prev.progressPercent()     : null,
+                state.lastPassedStopSeq(),
                 prev != null ? prev.passengersOnBoard()   : 0,
                 prev != null ? prev.availableSeats()      : bus.getCapacity(),
                 state.activeTripId(), state.tripStartedAt(), timestamp);

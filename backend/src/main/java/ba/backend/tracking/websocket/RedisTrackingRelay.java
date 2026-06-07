@@ -43,6 +43,9 @@ public class RedisTrackingRelay implements MessageListener {
             VehicleLiveSnapshot snapshot = objectMapper.readValue(json, VehicleLiveSnapshot.class);
             String              plate    = TrackingChannels.extractPlate(channel);
             wsHandler.pushToPlate(plate, snapshot);
+            if (snapshot.routeId() != null) {
+                wsHandler.pushToRoute(snapshot.routeId().toString(), snapshot);
+            }
         } catch (Exception e) {
             log.error("Failed to relay tracking message from {}: {}", channel, e.getMessage());
         }

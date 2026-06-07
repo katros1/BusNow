@@ -26,6 +26,7 @@ public record VehicleLiveSnapshot(
         Double  distanceToNextStopM,   // metres along route to next stop centroid
         Double  distanceToTerminalM,   // metres along route to end terminal centroid
         Double  progressPercent,       // 0–100, how far along the route the bus is
+        int     lastPassedStopSeq,    // sequence of last stop the bus visited (0 = not started)
         int     passengersOnBoard,
         Integer availableSeats,
         UUID    tripId,

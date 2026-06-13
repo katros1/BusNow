@@ -190,7 +190,7 @@ class _LiveTrackingPageState extends ConsumerState<LiveTrackingPage> {
               TileLayer(
                 urlTemplate:
                     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                userAgentPackageName: 'com.iots.client',
+                userAgentPackageName: 'com.busnow.client',
               ),
               if (busPos != null)
                 MarkerLayer(markers: [

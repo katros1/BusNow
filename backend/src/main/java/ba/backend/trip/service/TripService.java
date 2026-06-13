@@ -94,7 +94,7 @@ public class TripService {
             } else {
                 log.info("Adopting existing active trip {} for bus {}", existing.getId(), bus.getPlateNumber());
                 if (vehicleTripRepository.findFirstByBusIdAndStatusOrderByStartedAtDesc(bus.getId(), TripStatus.ACTIVE).isEmpty()) {
-                    log.warn("Active trip exists in iots_trip but missing in vehicle_trips. Synchronizing history...");
+                    log.warn("Active trip exists in busnow_trip but missing in vehicle_trips. Synchronizing history...");
                     vehicleTripRepository.save(new VehicleTripEntity(bus, existing.getRoute(), TripStatus.ACTIVE, existing.getStartedAt(), 0, 0, 0));
                 }
                 return existing;

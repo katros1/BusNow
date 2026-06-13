@@ -260,7 +260,7 @@ class _RouteMap extends StatelessWidget {
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.iots.client',
+          userAgentPackageName: 'com.busnow.client',
           maxZoom: 19,
         ),
 

@@ -15,8 +15,8 @@ import {
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const keycloakConfig: UserManagerSettings = {
-  authority: "http://localhost:1001/realms/iots-client",
-  client_id: "iots-client",
+  authority: "http://localhost:1001/realms/busnow-client",
+  client_id: "busnow-client",
   redirect_uri: window.location.origin + "/",
   post_logout_redirect_uri: window.location.origin + "/login",
   response_type: "code",

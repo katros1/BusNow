@@ -53,8 +53,8 @@ public interface RouteRepository extends JpaRepository<RouteEntity, UUID>, JpaSp
                             'BUS_PARK' AS point_type,
                             0 AS point_sequence,
                             ST_Centroid(bp.bp_geo) AS point_geom
-                        FROM iots_route r
-                        JOIN iots_bus_park bp ON bp.id = r.rt_start_bus_park_id
+                        FROM busnow_route r
+                        JOIN busnow_bus_park bp ON bp.id = r.rt_start_bus_park_id
 
                         UNION ALL
 
@@ -65,8 +65,8 @@ public interface RouteRepository extends JpaRepository<RouteEntity, UUID>, JpaSp
                             'STOP' AS point_type,
                             rs.rs_sequence AS point_sequence,
                             ST_Centroid(s.bs_geo) AS point_geom
-                        FROM iots_route_stop rs
-                        JOIN iots_bus_stop s ON s.id = rs.stop_id
+                        FROM busnow_route_stop rs
+                        JOIN busnow_bus_stop s ON s.id = rs.stop_id
 
                         UNION ALL
 
@@ -77,11 +77,11 @@ public interface RouteRepository extends JpaRepository<RouteEntity, UUID>, JpaSp
                             'BUS_PARK' AS point_type,
                             COALESCE(mx.max_sequence, 0) + 1 AS point_sequence,
                             ST_Centroid(bp.bp_geo) AS point_geom
-                        FROM iots_route r
-                        JOIN iots_bus_park bp ON bp.id = r.rt_end_bus_park_id
+                        FROM busnow_route r
+                        JOIN busnow_bus_park bp ON bp.id = r.rt_end_bus_park_id
                         LEFT JOIN (
                             SELECT route_id, MAX(rs_sequence) AS max_sequence
-                            FROM iots_route_stop
+                            FROM busnow_route_stop
                             GROUP BY route_id
                         ) mx ON mx.route_id = r.id
                     ) p

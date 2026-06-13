@@ -14,7 +14,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "iots_trip")
+@Table(name = "busnow_trip")
 public class TripEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

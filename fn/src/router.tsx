@@ -34,7 +34,7 @@ const layoutRoute = createRoute({
     // We check localStorage directly for the 'beforeLoad' check 
     // because useAuth is a hook and can't be used here easily.
     // TanStack Router context could be used for a cleaner approach.
-    const user = localStorage.getItem("oidc.user:http://localhost:1001/realms/iots-client:iots-client");
+    const user = localStorage.getItem("oidc.user:http://localhost:1001/realms/busnow-client:busnow-client");
     if (!user && location.pathname !== "/login") {
       throw redirect({ to: "/login" });
     }

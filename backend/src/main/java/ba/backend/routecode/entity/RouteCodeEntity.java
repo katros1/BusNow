@@ -6,7 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "iots_route_code")
+@Table(name = "busnow_route_code")
 public class RouteCodeEntity extends BaseEntity {
 
     @Column(name = "rc_code", nullable = false, unique = true)

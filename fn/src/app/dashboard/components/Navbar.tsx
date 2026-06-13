@@ -26,7 +26,7 @@ function resolveMeta(pathname: string) {
     return { title: "Edit Stop", description: "Modify stop details" };
   if (pathname.startsWith("/parks/") && pathname.endsWith("/edit"))
     return { title: "Edit Park", description: "Modify park details" };
-  return { title: "iots Transit", description: "" };
+  return { title: "busnow Transit", description: "" };
 }
 
 export function Navbar({ onMenuClick }: NavbarProps) {

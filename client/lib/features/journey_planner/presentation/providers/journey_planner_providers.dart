@@ -18,7 +18,7 @@ import 'package:client/features/journey_planner/presentation/notifiers/journey_p
 // ─── HTTP clients ────────────────────────────────────────────────────────────
 
 final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
-      baseUrl: 'http://localhost:8087/api/v1',
+      baseUrl: 'http://192.168.1.87:8087/api/v1',
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     )));
@@ -73,7 +73,7 @@ final osmSearchProvider =
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
     headers: {
-      'User-Agent': 'IOTS-Rwanda-Transit/1.0 (lambertbayiringire@gmail.com)',
+      'User-Agent': 'BusNow-Transit/1.0 (lambertbayiringire@gmail.com)',
       'Accept-Language': 'en',
     },
   )).get('/search', queryParameters: {

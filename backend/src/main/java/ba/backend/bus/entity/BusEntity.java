@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 @Entity
-@Table(name = "iots_bus")
+@Table(name = "busnow_bus")
 public class BusEntity extends BaseEntity {
 
     @Column(name = "bus_plate_number", nullable = false, unique = true)

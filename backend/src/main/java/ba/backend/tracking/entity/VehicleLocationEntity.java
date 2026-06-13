@@ -14,7 +14,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "iots_vehicle_location", indexes = {
+@Table(name = "busnow_vehicle_location", indexes = {
         @Index(name = "idx_vl_bus_id",      columnList = "vl_bus_id"),
         @Index(name = "idx_vl_trip_id",     columnList = "vl_trip_id"),
         @Index(name = "idx_vl_stop_id",     columnList = "vl_stop_id"),

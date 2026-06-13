@@ -20,7 +20,7 @@ public interface StopRepository extends JpaRepository<StopEntity, UUID>, JpaSpec
                             ST_Centroid(s.bs_geo),
                             ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
                         ) / 1000.0 AS distanceKm
-                    FROM iots_bus_stop s
+                    FROM busnow_bus_stop s
                     ORDER BY ST_DistanceSphere(
                         ST_Centroid(s.bs_geo),
                         ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)

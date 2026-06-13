@@ -19,7 +19,7 @@ import java.util.List;
 import org.locationtech.jts.geom.LineString;
 
 @Entity
-@Table(name = "iots_route")
+@Table(name = "busnow_route")
 public class RouteEntity extends BaseEntity {
 
     @Column(name = "rt_name", nullable = false, unique = true)

@@ -6,7 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "iots_user_profile")
+@Table(name = "busnow_user_profile")
 public class UserProfileEntity extends BaseEntity {
 
     @Column(name = "up_external_id", nullable = false, unique = true)

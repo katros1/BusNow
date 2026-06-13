@@ -14,7 +14,7 @@ class UrbanTransitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'IOTS',
+      title: 'BusNow',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,

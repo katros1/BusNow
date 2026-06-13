@@ -10,7 +10,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "iots_route_stop")
+@Table(name = "busnow_route_stop")
 public class RouteStopEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

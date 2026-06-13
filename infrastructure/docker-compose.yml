@@ -2,42 +2,42 @@ version: '3.9'
 
 services:
 
-  iots-postgres:
+  busnow-postgres:
     image: postgis/postgis:15-3.3
-    container_name: iots-postgres
+    container_name: busnow-postgres
     restart: always
     environment:
-      POSTGRES_DB: iots_db
-      POSTGRES_USER: iots_user
-      POSTGRES_PASSWORD: /iots_pass@1
+      POSTGRES_DB: busnow_db
+      POSTGRES_USER: busnow_user
+      POSTGRES_PASSWORD: /busnow_pass@1
     ports:
       - "1000:5432"
     volumes:
-      - iots_postgres_data:/var/lib/postgresql/data
+      - busnow_postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U iots_user"]
+      test: ["CMD-SHELL", "pg_isready -U busnow_user"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  iots-redis:
+  busnow-redis:
     image: redis:7-alpine
-    container_name: iots_redis
+    container_name: busnow_redis
     restart: always
     ports:
       - "6379:6379"
     volumes:
-      - iots_redis_data:/data
+      - busnow_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  iots-keycloak:
+  busnow-keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    container_name: iots-keycloak
+    container_name: busnow-keycloak
     command: start-dev --http-enabled=true --hostname-strict=false
     restart: always
     environment:
@@ -49,19 +49,19 @@ services:
       
       # Database configuration
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://iots-postgres:5432/iots_db
-      KC_DB_USERNAME: iots_user
-      KC_DB_PASSWORD: /iots_pass@1
+      KC_DB_URL: jdbc:postgresql://busnow-postgres:5432/busnow_db
+      KC_DB_USERNAME: busnow_user
+      KC_DB_PASSWORD: /busnow_pass@1
       
       KC_LOG_LEVEL: INFO
     ports:
       - "1001:8080"
     depends_on:
-      iots-postgres:
+      busnow-postgres:
         condition: service_healthy
 
 volumes:
-  iots_postgres_data:
-    name: iots_postgres_data
-  iots_redis_data:
-    name: iots_redis_data
+  busnow_postgres_data:
+    name: busnow_postgres_data
+  busnow_redis_data:
+    name: busnow_redis_data

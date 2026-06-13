@@ -8,7 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "iots_driver")
+@Table(name = "busnow_driver")
 public class DriverEntity extends BaseEntity {
 
     @Column(name = "dr_first_name", nullable = false)

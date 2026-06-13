@@ -5,8 +5,8 @@ DROP TABLE IF EXISTS vehicle_trips CASCADE;
 
 CREATE TABLE vehicle_trips (
     id                      uuid PRIMARY KEY,
-    vt_bus_id               uuid NOT NULL REFERENCES iots_bus(id),
-    vt_route_id             uuid NOT NULL REFERENCES iots_route(id),
+    vt_bus_id               uuid NOT NULL REFERENCES busnow_bus(id),
+    vt_route_id             uuid NOT NULL REFERENCES busnow_route(id),
     vt_status               varchar(16) NOT NULL,
     vt_started_at           timestamptz NOT NULL,
     vt_ended_at             timestamptz,

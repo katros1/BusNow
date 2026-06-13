@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 import org.locationtech.jts.geom.Polygon;
 
 @Entity
-@Table(name = "iots_bus_park")
+@Table(name = "busnow_bus_park")
 public class BusParkEntity extends BaseEntity {
     @Column(name = "bp_name", nullable = false, unique = true)
     private String name;

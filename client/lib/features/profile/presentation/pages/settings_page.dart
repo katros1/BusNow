@@ -88,7 +88,7 @@ class SettingsPage extends StatelessWidget {
                   _SettingsGroup(children: [
                     const _NavTile(
                       icon: LucideIcons.info,
-                      title: 'About IOTS',
+                      title: 'About BusNow',
                       subtitle: 'Rwanda Intelligent Transit System',
                     ),
                     const _NavTile(
@@ -120,7 +120,7 @@ class SettingsPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         const Text(
-                          'IOTS Rwanda',
+                          'BusNow',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -182,7 +182,7 @@ class _AppCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'IOTS Rwanda',
+                  'BusNow',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

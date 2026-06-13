@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=/Users/macbookpro/flutter/flutter"
-export "FLUTTER_APPLICATION_PATH=/Users/macbookpro/Desktop/My-Library/java/spring boot/iots/client"
+export "FLUTTER_ROOT=/Users/mac/fvm/versions/3.41.6"
+export "FLUTTER_APPLICATION_PATH=/Users/mac/Desktop/MY STUFF/busnow/client"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"

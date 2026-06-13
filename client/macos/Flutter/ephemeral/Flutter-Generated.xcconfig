@@ -1,6 +1,6 @@
 // This is a generated file; do not edit or check into version control.
-FLUTTER_ROOT=/Users/macbookpro/flutter/flutter
-FLUTTER_APPLICATION_PATH=/Users/macbookpro/Desktop/My-Library/java/spring boot/iots/client
+FLUTTER_ROOT=/Users/mac/fvm/versions/3.41.6
+FLUTTER_APPLICATION_PATH=/Users/mac/Desktop/MY STUFF/busnow/client
 COCOAPODS_PARALLEL_CODE_SIGN=true
 FLUTTER_BUILD_DIR=build
 FLUTTER_BUILD_NAME=1.0.0

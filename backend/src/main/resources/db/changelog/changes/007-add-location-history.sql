@@ -1,13 +1,13 @@
 -- Add final passenger counters to trip (captured when trip ends)
-ALTER TABLE iots_trip
+ALTER TABLE busnow_trip
     ADD COLUMN IF NOT EXISTS tr_final_in  integer,
     ADD COLUMN IF NOT EXISTS tr_final_out integer;
 
 -- GPS location history — one row per GPS frame received while gpsValid=true
-CREATE TABLE IF NOT EXISTS iots_vehicle_location (
+CREATE TABLE IF NOT EXISTS busnow_vehicle_location (
     id                      uuid PRIMARY KEY,
-    vl_bus_id               uuid NOT NULL REFERENCES iots_bus(id),
-    vl_trip_id              uuid REFERENCES iots_trip(id),
+    vl_bus_id               uuid NOT NULL REFERENCES busnow_bus(id),
+    vl_trip_id              uuid REFERENCES busnow_trip(id),
     vl_latitude             double precision NOT NULL,
     vl_longitude            double precision NOT NULL,
     vl_speed_kmh            double precision,
@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS iots_vehicle_location (
     updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_vl_bus_id      ON iots_vehicle_location (vl_bus_id);
-CREATE INDEX IF NOT EXISTS idx_vl_trip_id     ON iots_vehicle_location (vl_trip_id);
-CREATE INDEX IF NOT EXISTS idx_vl_recorded_at ON iots_vehicle_location (vl_recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vl_bus_id      ON busnow_vehicle_location (vl_bus_id);
+CREATE INDEX IF NOT EXISTS idx_vl_trip_id     ON busnow_vehicle_location (vl_trip_id);
+CREATE INDEX IF NOT EXISTS idx_vl_recorded_at ON busnow_vehicle_location (vl_recorded_at DESC);

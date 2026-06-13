@@ -17,7 +17,7 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const userKey = "oidc.user:http://localhost:1001/realms/iots-client:iots-client";
+  const userKey = "oidc.user:http://localhost:1001/realms/busnow-client:busnow-client";
   const userJson = localStorage.getItem(userKey);
   const user = userJson ? JSON.parse(userJson) : null;
   const token = user?.access_token;

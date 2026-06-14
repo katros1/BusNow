@@ -1,5 +1,4 @@
 --liquibase formatted sql
-
 --changeset ba-lambert:013-fix-fare-settings-default
 -- Ensure exactly one row exists with a sensible default.
 -- If the table was seeded manually with a non-standard value (e.g. 50 from a test run),

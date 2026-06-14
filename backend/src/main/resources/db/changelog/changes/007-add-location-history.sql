@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-007 splitStatements:true
 -- Add final passenger counters to trip (captured when trip ends)
 ALTER TABLE busnow_trip
     ADD COLUMN IF NOT EXISTS tr_final_in  integer,

@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-003 splitStatements:true
 CREATE TABLE IF NOT EXISTS busnow_route (
     id uuid PRIMARY KEY,
     route_name varchar(120) NOT NULL UNIQUE,

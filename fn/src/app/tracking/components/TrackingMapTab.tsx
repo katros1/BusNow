@@ -203,7 +203,7 @@ export function TrackingMapTab({
           onUserMove={() => setFollowing(false)}
         />
 
-        {/* ── Route polyline from busnow_route.geo ───────────────────────── */}
+        {/* ── Route polyline from iots_route.geo ───────────────────────── */}
         {routeDetail && routeDetail.routePath.length >= 2 && (
           <Polyline
             positions={lonLatToLatLon(routeDetail.routePath)}

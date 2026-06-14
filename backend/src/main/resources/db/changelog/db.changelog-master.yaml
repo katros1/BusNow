@@ -1,27 +1,40 @@
 databaseChangeLog:
   - include:
-      file: db/changelog/changes/001-init.sql
+      file: changes/001-init.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/002-create-stop-terminal-tables.sql
+      file: changes/002-create-stop-terminal-tables.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/003-create-route-tables.sql
+      file: changes/003-create-route-tables.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/004-route-columns-rt-prefix.sql
+      file: changes/004-route-columns-rt-prefix.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/005-fleet-driver-bus-route-code.sql
+      file: changes/005-fleet-driver-bus-route-code.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/006-create-trip-table.sql
+      file: changes/006-create-trip-table.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/007-add-location-history.sql
+      file: changes/007-add-location-history.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/008-add-stop-to-location.sql
+      file: changes/008-add-stop-to-location.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/009-create-vehicle-trips-history.sql
+      file: changes/009-create-vehicle-trips-history.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/010-add-last-route-to-bus.sql
+      file: changes/010-add-last-route-to-bus.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/011-create-user-profile-table.sql
+      file: changes/011-create-user-profile-table.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/012-create-fare-settings.sql
+      file: changes/012-create-fare-settings.sql
+      relativeToChangelogFile: true
   - include:
-      file: db/changelog/changes/013-fix-fare-settings-default.sql
+      file: changes/013-fix-fare-settings-default.sql
+      relativeToChangelogFile: true

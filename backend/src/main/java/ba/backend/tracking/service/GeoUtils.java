@@ -26,6 +26,27 @@ public final class GeoUtils {
     }
 
     /**
+     * Distance in metres from the route start to the projection of (lat, lon) onto the
+     * nearest vertex of the route LineString.
+     *
+     * <p>This is the primary primitive for stop-advancement: project both the bus and each
+     * stop onto the route, then compare scalar distances from the start.  Works for
+     * off-route buses — the nearest vertex acts as a reasonable projection even when the
+     * GPS position is not on the drawn path.
+     */
+    public static double distanceFromStartM(LineString route, double lat, double lon) {
+        Coordinate[] pts = route.getCoordinates();
+        if (pts.length == 0) return 0.0;
+        int nearest = nearestVertex(pts, lat, lon);
+        double d = 0.0;
+        for (int i = 0; i < nearest; i++) {
+            d += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
+        }
+        d += haversineM(pts[nearest].y, pts[nearest].x, lat, lon);
+        return d;
+    }
+
+    /**
      * Metres remaining along a route LineString from the bus to a target point.
      *
      * <p>Algorithm:
@@ -61,8 +82,8 @@ public final class GeoUtils {
             total += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
         }
 
-        // last vertex → target
-        if (tgtIdx > next) {
+        // last vertex → target (tgtIdx >= next after the guard above)
+        if (tgtIdx >= next) {
             total += haversineM(pts[tgtIdx].y, pts[tgtIdx].x, targetLat, targetLon);
         }
 
@@ -105,7 +126,7 @@ public final class GeoUtils {
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private static int nearestVertex(Coordinate[] pts, double lat, double lon) {
+    static int nearestVertex(Coordinate[] pts, double lat, double lon) {
         int idx = 0;
         double minD = Double.MAX_VALUE;
         for (int i = 0; i < pts.length; i++) {

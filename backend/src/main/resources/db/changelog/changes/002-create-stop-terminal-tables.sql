@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-002 splitStatements:true
 CREATE TABLE IF NOT EXISTS busnow_bus_stop (
     id uuid PRIMARY KEY,
     bs_name varchar(120) NOT NULL UNIQUE,

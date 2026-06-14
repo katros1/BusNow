@@ -32,13 +32,26 @@ public class JourneyPlannerService {
 
     private static final int DEFAULT_MAX_SUGGESTIONS = 5;
     private static final int ABSOLUTE_MAX_SUGGESTIONS = 5;
-    private static final double MAX_RECOMMENDED_WALKING_KM = 3.0;
-    private static final double TIER_1_MAX_WALKING_KM = 1.0;
-    private static final double TIER_2_MAX_WALKING_KM = 2.0;
 
     /**
-     * How many straight-line candidates are sent to OSRM for real-distance enrichment.
-     * Straight-line pre-filtering keeps the number of OSRM calls bounded.
+     * Walking quality tiers — used to label the suggestion card in the client.
+     *
+     *  TIER_1 – excellent: both legs short, barely a walk
+     *  TIER_2 – good:      comfortable walk on at least one leg
+     *  TIER_3 – fair:      longer walk; still usable, shown last
+     */
+    private static final double TIER_1_MAX_BOARDING_KM    = 0.40;
+    private static final double TIER_1_MAX_ALIGHTING_KM   = 0.40;
+    private static final double TIER_2_MAX_TOTAL_KM       = 1.50;
+
+    /**
+     * Maximum distance from alighting stop to destination we consider "serving" the destination.
+     * Routes beyond this threshold are excluded UNLESS they are the only option.
+     */
+    private static final double MAX_DESTINATION_WALK_KM = 2.0;
+
+    /**
+     * How many candidates are sent to OSRM for real road-distance enrichment.
      */
     private static final int OSRM_ENRICH_LIMIT = 10;
 
@@ -65,32 +78,36 @@ public class JourneyPlannerService {
     /**
      * Plans a journey from {@code currentLocation} to {@code destinationLocation}.
      *
-     * <p>Strategy:
+     * <h3>Strategy</h3>
      * <ol>
-     *   <li>PostGIS {@code ST_DistanceSphere} is used to annotate every route point
-     *       (start bus park → stops → end bus park) in the DB with its straight-line
-     *       distance to the origin and destination.  This is fast and lets us filter
-     *       down to the best candidates before hitting OSRM.</li>
-     *   <li>The best (boarding, alighting) pair is chosen per route — the pair that
-     *       minimises total straight-line walking distance, with alighting always
-     *       after boarding in route sequence.</li>
-     *   <li>The top {@value OSRM_ENRICH_LIMIT} candidates are enriched in parallel
-     *       with <em>real road-network distances and walking durations</em> from OSRM.
-     *       This is essential for Rwanda: the country's hilly terrain means Haversine
-     *       distances can be 30-50 % shorter than the actual walking path.</li>
-     *   <li>Candidates are re-ranked by OSRM distance and filtered by the recommended
-     *       walking budget.</li>
+     *   <li>PostGIS provides straight-line distances from every route point to the user's
+     *       origin and destination.</li>
+     *   <li>Per route: pick the <em>nearest boarding stop to the user</em> (pure proximity,
+     *       no backtrack penalty — user asked for the physically closest stop), then pick the
+     *       <em>nearest alighting stop</em> to the destination after boarding.</li>
+     *   <li>Routes where the alighting stop is more than {@value MAX_DESTINATION_WALK_KM} km
+     *       from the destination are excluded (unless they are the only option).</li>
+     *   <li>The top {@value OSRM_ENRICH_LIMIT} candidates are enriched in parallel with real
+     *       road-network walking distances and durations from OSRM.</li>
+     *   <li>Results are sorted by boarding walk first, then destination distance.</li>
+     *   <li>When {@code currentLocation} is null (GPS unavailable), boarding stop is the first
+     *       stop of the route and {@code walkToBoardingKm} is returned as null.</li>
      * </ol>
      */
     @Transactional(readOnly = true)
     public JourneyPlanResponseDto plan(JourneyPlanRequestDto request) {
-        GeoPoint origin = parseAndValidatePoint(request.currentLocation(), "currentLocation");
         GeoPoint dest   = parseAndValidatePoint(request.destinationLocation(), "destinationLocation");
+        GeoPoint origin = parseOptionalPoint(request.currentLocation());
+        boolean hasGps  = (origin != null);
         int limit = clampLimit(request.maxSuggestions());
 
-        // ── Phase 1: DB — collect route points with straight-line distances ──────
+        // Use destination as dummy origin when GPS unavailable — SQL still computes all distances,
+        // but walkToBoardingKm will be overridden to null in the response.
+        GeoPoint sqlOrigin = Objects.requireNonNullElse(origin, dest);
+
+        // ── Phase 1: DB — all route points with straight-line distances ───────────
         List<PlanRoutePointProjection> routePoints = routeRepository.findRoutePointsForPlanning(
-                origin.longitude(), origin.latitude(),
+                sqlOrigin.longitude(), sqlOrigin.latitude(),
                 dest.longitude(),   dest.latitude()
         );
 
@@ -100,29 +117,36 @@ public class JourneyPlannerService {
         Map<UUID, RouteEntity> routesById = routeRepository.findAll().stream()
                 .collect(Collectors.toMap(RouteEntity::getId, Function.identity()));
 
-        // ── Phase 2: best (boarding, alighting) per route by straight-line ───────
-        List<RouteCandidate> candidates = byRoute.entrySet().stream()
-                .map(e -> findBestCandidate(routesById.get(e.getKey()), e.getValue()))
+        // ── Phase 2: one candidate per route ─────────────────────────────────────
+        List<RouteCandidate> allCandidates = byRoute.entrySet().stream()
+                .map(e -> findBestCandidate(routesById.get(e.getKey()), e.getValue(), hasGps))
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingDouble(RouteCandidate::totalWalkingKm))
-                .limit(OSRM_ENRICH_LIMIT)
+                .sorted(Comparator.comparingDouble(RouteCandidate::walkToBoardingKmOrZero))
                 .collect(Collectors.toList());
 
-        // ── Phase 3: OSRM — real road-network distances (parallel) ───────────────
-        List<RouteCandidate> enriched = enrichWithOsrm(candidates, origin, dest);
-        enriched.sort(Comparator.comparingDouble(RouteCandidate::totalWalkingKm));
+        // Filter: only keep routes that actually serve the destination area.
+        // Fall back to all candidates if filtering would leave nothing.
+        List<RouteCandidate> nearDest = allCandidates.stream()
+                .filter(c -> c.distanceToDestinationKm() <= MAX_DESTINATION_WALK_KM)
+                .collect(Collectors.toList());
+        List<RouteCandidate> candidates = nearDest.isEmpty() ? allCandidates : nearDest;
 
-        // ── Phase 4: apply walking budget; fall back to all enriched if none fit ─
-        List<RouteCandidate> eligible = enriched.stream()
-                .filter(c -> c.totalWalkingKm() <= MAX_RECOMMENDED_WALKING_KM)
-                .toList();
-        List<RouteCandidate> selected = eligible.isEmpty() ? enriched : eligible;
+        // Limit to OSRM enrichment cap
+        candidates = candidates.stream().limit(OSRM_ENRICH_LIMIT).collect(Collectors.toList());
+
+        // ── Phase 3: OSRM — real road-network distances (parallel) ───────────────
+        GeoPoint finalOrigin = origin;
+        List<RouteCandidate> enriched = enrichWithOsrm(candidates, finalOrigin, dest, hasGps);
+
+        enriched.sort(Comparator
+                .comparingDouble(RouteCandidate::walkToBoardingKmOrZero)
+                .thenComparingDouble(RouteCandidate::distanceToDestinationKm));
 
         double basePriceFrw = fareCalculatorService.getCurrentBasePriceFrw();
 
-        return new JourneyPlanResponseDto(selected.stream()
+        return new JourneyPlanResponseDto(enriched.stream()
                 .limit(limit)
-                .map(c -> toSuggestion(c, basePriceFrw))
+                .map(c -> toSuggestion(c, basePriceFrw, hasGps))
                 .toList());
     }
 
@@ -143,100 +167,124 @@ public class JourneyPlannerService {
 
     // ── OSRM enrichment ───────────────────────────────────────────────────────
 
-    /**
-     * For each candidate, fires two parallel OSRM walking requests:
-     *   • origin → boarding point
-     *   • alighting point → destination
-     *
-     * If OSRM is unreachable for a leg, the straight-line distance is kept as fallback
-     * so the response is always returned even when OSRM is temporarily down.
-     */
     private List<RouteCandidate> enrichWithOsrm(
             List<RouteCandidate> candidates,
             GeoPoint origin,
-            GeoPoint dest
+            GeoPoint dest,
+            boolean hasGps
     ) {
         List<CompletableFuture<RouteCandidate>> futures = candidates.stream()
-                .map(c -> CompletableFuture.supplyAsync(() -> enrichCandidate(c, origin, dest)))
+                .map(c -> CompletableFuture.supplyAsync(() -> enrichCandidate(c, origin, dest, hasGps)))
                 .toList();
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         return futures.stream()
                 .map(f -> {
-                    try {
-                        return f.get();
-                    } catch (Exception e) {
-                        throw new RuntimeException("OSRM enrichment interrupted", e);
-                    }
+                    try { return f.get(); }
+                    catch (Exception e) { throw new RuntimeException("OSRM enrichment interrupted", e); }
                 })
                 .collect(Collectors.toList());
     }
 
-    private RouteCandidate enrichCandidate(RouteCandidate c, GeoPoint origin, GeoPoint dest) {
-        OsrmWalkResult toBoarding = osrmClient.walkingRoute(
-                origin.longitude(), origin.latitude(),
-                c.boarding().getLongitude(), c.boarding().getLatitude()
-        ).orElse(null);
+    private RouteCandidate enrichCandidate(RouteCandidate c, GeoPoint origin, GeoPoint dest, boolean hasGps) {
+        Double boardingKm = null;
+        int boardingMin = 0;
+
+        if (hasGps && origin != null) {
+            OsrmWalkResult toBoarding = osrmClient.walkingRoute(
+                    origin.longitude(), origin.latitude(),
+                    c.boarding().getLongitude(), c.boarding().getLatitude()
+            ).orElse(null);
+            if (toBoarding != null) {
+                boardingKm = toBoarding.distanceKm();
+                boardingMin = toBoarding.durationMinutes();
+            } else {
+                boardingKm = c.walkToBoardingKm();
+                boardingMin = estimateWalkMinutes(boardingKm != null ? boardingKm : 0);
+            }
+        }
 
         OsrmWalkResult toDestination = osrmClient.walkingRoute(
                 c.destination().getLongitude(), c.destination().getLatitude(),
                 dest.longitude(), dest.latitude()
         ).orElse(null);
 
-        double boardingKm    = toBoarding    != null ? toBoarding.distanceKm()    : c.walkToBoardingKm();
-        double destinationKm = toDestination != null ? toDestination.distanceKm() : c.walkToDestinationKm();
+        double destinationKm = toDestination != null ? toDestination.distanceKm() : c.distanceToDestinationKm();
+        int destinationMin   = toDestination != null ? toDestination.durationMinutes() : estimateWalkMinutes(destinationKm);
 
-        // When OSRM is unavailable for a leg, estimate minutes from the distance we have.
-        // OSRM's duration is preferred because it accounts for road network and hills.
-        int boardingMin    = toBoarding    != null ? toBoarding.durationMinutes()    : estimateWalkMinutes(boardingKm);
-        int destinationMin = toDestination != null ? toDestination.durationMinutes() : estimateWalkMinutes(destinationKm);
+        double totalKm  = (boardingKm != null ? boardingKm : 0) + destinationKm;
+        int    totalMin = boardingMin + destinationMin;
 
         return new RouteCandidate(
                 c.route(), c.boarding(), c.destination(),
-                boardingKm, destinationKm, boardingKm + destinationKm,
-                boardingMin, destinationMin
+                boardingKm, destinationKm, totalKm,
+                boardingMin, destinationMin, totalMin
         );
     }
 
-    /** Estimates walking time at 5 km/h, rounded up to the nearest minute. */
     private int estimateWalkMinutes(double km) {
         return (int) Math.ceil(km / 5.0 * 60.0);
     }
 
     // ── Candidate selection ───────────────────────────────────────────────────
 
+    /**
+     * Selects the best (boarding, alighting) pair for one route.
+     *
+     * Boarding: the stop nearest to the user (pure proximity — no direction penalty).
+     * Alighting: the stop nearest to the destination that comes after boarding in sequence.
+     *
+     * When GPS is unavailable ({@code hasGps=false}), the first point on the route
+     * (sequence 0, usually the start bus park) is used as boarding.
+     */
     private RouteCandidate findBestCandidate(
             RouteEntity route,
-            List<PlanRoutePointProjection> points
+            List<PlanRoutePointProjection> points,
+            boolean hasGps
     ) {
-        if (route == null || points.size() < 2) return null;
+        if (route == null || points.isEmpty()) return null;
 
-        RouteCandidate best = null;
-        for (int i = 0; i < points.size() - 1; i++) {
-            PlanRoutePointProjection boarding  = points.get(i);
-            double toBoarding = boarding.getWalkToBoardingKm();
-            for (int j = i + 1; j < points.size(); j++) {
-                PlanRoutePointProjection alighting = points.get(j);
-                double total = toBoarding + alighting.getWalkToDestinationKm();
-                if (best == null || total < best.totalWalkingKm()) {
-                    // Walking minutes are 0 here; OSRM enrichment fills them in.
-                    best = new RouteCandidate(
-                            route, boarding, alighting,
-                            toBoarding, alighting.getWalkToDestinationKm(), total,
-                            0, 0
-                    );
-                }
-            }
+        // ── Boarding: nearest stop to user (no backtrack penalty) ─────────────
+        PlanRoutePointProjection boarding;
+        if (hasGps) {
+            boarding = points.stream()
+                    .min(Comparator.comparingDouble(PlanRoutePointProjection::getWalkToBoardingKm))
+                    .orElse(null);
+        } else {
+            // No GPS — pick the route's first point (bus park / first stop)
+            boarding = points.stream()
+                    .min(Comparator.comparingInt(PlanRoutePointProjection::getPointSequence))
+                    .orElse(null);
         }
-        return best;
+        if (boarding == null) return null;
+
+        // ── Alighting: nearest to destination, after boarding ─────────────────
+        final int boardingSeq = boarding.getPointSequence();
+        PlanRoutePointProjection alighting = points.stream()
+                .filter(p -> p.getPointSequence() > boardingSeq)
+                .min(Comparator.comparingDouble(PlanRoutePointProjection::getWalkToDestinationKm))
+                .orElse(null);
+        if (alighting == null) return null;
+
+        Double boardingKm    = hasGps ? boarding.getWalkToBoardingKm() : null;
+        double destinationKm = alighting.getWalkToDestinationKm();
+        double totalKm       = (boardingKm != null ? boardingKm : 0) + destinationKm;
+
+        return new RouteCandidate(
+                route, boarding, alighting,
+                boardingKm, destinationKm, totalKm,
+                0, 0, 0
+        );
     }
 
     // ── DTO mapping ───────────────────────────────────────────────────────────
 
-    private JourneyPlanResponseDto.JourneyRouteSuggestionDto toSuggestion(RouteCandidate c, double basePriceFrw) {
+    private JourneyPlanResponseDto.JourneyRouteSuggestionDto toSuggestion(RouteCandidate c, double basePriceFrw, boolean hasGps) {
         double rideDistanceKm = rideDistanceKm(c);
         double toEndKm        = boardingToEndKm(c);
+
+        Double displayBoardingKm = hasGps ? (c.walkToBoardingKm() != null ? round(c.walkToBoardingKm()) : null) : null;
 
         return new JourneyPlanResponseDto.JourneyRouteSuggestionDto(
                 c.route().getId(),
@@ -256,21 +304,26 @@ public class JourneyPlannerService {
                         c.destination().getPointSequence(),
                         List.of(c.destination().getLongitude(), c.destination().getLatitude())
                 ),
-                round(c.walkToBoardingKm()),
-                round(c.walkToDestinationKm()),
+                displayBoardingKm,
+                round(c.distanceToDestinationKm()),
                 round(c.totalWalkingKm()),
                 c.walkToBoardingMinutes(),
-                c.walkToDestinationMinutes(),
-                c.walkToBoardingMinutes() + c.walkToDestinationMinutes(),
-                toTier(c.totalWalkingKm()),
+                c.distanceToDestinationMinutes(),
+                c.totalWalkingMinutes(),
+                toTier(c.walkToBoardingKm(), c.distanceToDestinationKm(), c.totalWalkingKm()),
                 round(rideDistanceKm),
                 fareCalculatorService.calculateFare(basePriceFrw, rideDistanceKm),
                 fareCalculatorService.calculateFare(basePriceFrw, toEndKm)
         );
     }
 
-    /** Distance along the route polyline from the boarding point to the destination point. */
     private double rideDistanceKm(RouteCandidate c) {
+        if (c.route().getGeo() == null) {
+            return GeoUtils.haversineM(
+                    c.boarding().getLatitude(),    c.boarding().getLongitude(),
+                    c.destination().getLatitude(), c.destination().getLongitude()
+            ) / 1000.0;
+        }
         double metres = GeoUtils.distanceAlongLineM(
                 c.route().getGeo(),
                 c.boarding().getLatitude(),    c.boarding().getLongitude(),
@@ -279,11 +332,8 @@ public class JourneyPlannerService {
         return metres / 1000.0;
     }
 
-    /**
-     * Distance along the route from the boarding point to the very last coordinate (end bus park).
-     * This is the worst-case ride length: used to compute the minimum card balance needed to board.
-     */
     private double boardingToEndKm(RouteCandidate c) {
+        if (c.route().getGeo() == null) return rideDistanceKm(c);
         Coordinate[] coords = c.route().getGeo().getCoordinates();
         Coordinate last = coords[coords.length - 1];
         double metres = GeoUtils.distanceAlongLineM(
@@ -296,9 +346,10 @@ public class JourneyPlannerService {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private String toTier(double totalWalkingKm) {
-        if (totalWalkingKm <= TIER_1_MAX_WALKING_KM) return "TIER_1";
-        if (totalWalkingKm <= TIER_2_MAX_WALKING_KM) return "TIER_2";
+    private String toTier(Double boardingKm, double alightingKm, double totalKm) {
+        double b = boardingKm != null ? boardingKm : 0;
+        if (b <= TIER_1_MAX_BOARDING_KM && alightingKm <= TIER_1_MAX_ALIGHTING_KM) return "TIER_1";
+        if (totalKm <= TIER_2_MAX_TOTAL_KM) return "TIER_2";
         return "TIER_3";
     }
 
@@ -313,8 +364,16 @@ public class JourneyPlannerService {
         }
         double lng = coords.get(0);
         double lat = coords.get(1);
-        if (lng < -180 || lng > 180) throw new IllegalArgumentException(field + " longitude must be between -180 and 180.");
-        if (lat < -90  || lat > 90)  throw new IllegalArgumentException(field + " latitude must be between -90 and 90.");
+        if (lng < -180 || lng > 180) throw new IllegalArgumentException(field + " longitude out of range.");
+        if (lat < -90  || lat > 90)  throw new IllegalArgumentException(field + " latitude out of range.");
+        return new GeoPoint(lng, lat);
+    }
+
+    private GeoPoint parseOptionalPoint(List<Double> coords) {
+        if (coords == null || coords.size() != 2) return null;
+        Double lng = coords.get(0);
+        Double lat = coords.get(1);
+        if (lng == null || lat == null) return null;
         return new GeoPoint(lng, lat);
     }
 
@@ -330,10 +389,15 @@ public class JourneyPlannerService {
             RouteEntity route,
             PlanRoutePointProjection boarding,
             PlanRoutePointProjection destination,
-            double walkToBoardingKm,
-            double walkToDestinationKm,
+            Double walkToBoardingKm,           // null when GPS unavailable
+            double distanceToDestinationKm,
             double totalWalkingKm,
             int walkToBoardingMinutes,
-            int walkToDestinationMinutes
-    ) {}
+            int distanceToDestinationMinutes,
+            int totalWalkingMinutes
+    ) {
+        double walkToBoardingKmOrZero() {
+            return walkToBoardingKm != null ? walkToBoardingKm : 0;
+        }
+    }
 }

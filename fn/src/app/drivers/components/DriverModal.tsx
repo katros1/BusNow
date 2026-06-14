@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { X, Save } from "lucide-react";
 import { useCreateDriver, useUpdateDriver } from "../api/drivers.mutations";
 import type { Driver } from "../api/drivers.types";
@@ -79,7 +79,7 @@ export function DriverModal({ driver, onClose }: DriverModalProps) {
           <div>
             <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">Gender</label>
             <select
-              value={gender} onChange={(e: any) => setGender(e.target.value)}
+              value={gender} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setGender(e.target.value as "MALE" | "FEMALE")}
               className="w-full h-10 px-3 rounded-lg border border-border outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-[13px] font-medium cursor-pointer"
             >
               <option value="MALE">Male</option>

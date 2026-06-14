@@ -35,6 +35,7 @@ export function useVehicleSocket(plateNumber: string | undefined): VehicleSocket
   const mountedRef   = useRef(true);
   const plateRef     = useRef(plateNumber);
   const tokenRef     = useRef(token);
+  const connectRef   = useRef<(() => void) | null>(null);
 
   useEffect(() => { plateRef.current = plateNumber; });
   useEffect(() => { tokenRef.current = token; });
@@ -75,17 +76,18 @@ export function useVehicleSocket(plateNumber: string | undefined): VehicleSocket
       if (!mountedRef.current) return;
       const delay = Math.min(1_000 * 2 ** retryCount.current, MAX_RETRY_DELAY_MS);
       retryCount.current = Math.min(retryCount.current + 1, 10);
-      retryTimer.current = setTimeout(connect, delay);
+      retryTimer.current = setTimeout(() => connectRef.current?.(), delay);
     };
 
     ws.onerror = () => ws.close();
   }, []); // stable — reads via refs
 
+  useEffect(() => { connectRef.current = connect; }, [connect]);
+
   // Connect/reconnect when plate or token changes
   useEffect(() => {
     mountedRef.current = true;
     retryCount.current = 0;
-    setSnapshot(null);
     if (plateNumber) connect();
     return () => {
       mountedRef.current = false;
@@ -95,5 +97,6 @@ export function useVehicleSocket(plateNumber: string | undefined): VehicleSocket
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plateNumber, token]);
 
-  return { snapshot, connected };
+  // Filter out stale snapshots from a previous plate
+  return { snapshot: snapshot?.plateNumber === plateNumber ? snapshot : null, connected };
 }

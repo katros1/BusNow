@@ -138,6 +138,7 @@ export default function Parks() {
         },
     ]
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data: parks,
         columns,

@@ -114,6 +114,7 @@ export default function Drivers() {
     []
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: drivers,
     columns,

@@ -25,6 +25,9 @@ class _VehicleSnap {
   final String? routeName;
   final String? currentStopName;
   final String? nextStopName;
+  final double? nextStopLat;
+  final double? nextStopLon;
+  final double? distanceToNextStopM;
   final int passengersOnBoard;
   final bool hasTrip;
 
@@ -38,6 +41,9 @@ class _VehicleSnap {
     this.routeName,
     this.currentStopName,
     this.nextStopName,
+    this.nextStopLat,
+    this.nextStopLon,
+    this.distanceToNextStopM,
     this.passengersOnBoard = 0,
     this.hasTrip = false,
   });
@@ -52,9 +58,14 @@ class _VehicleSnap {
         routeName: j['routeName'] as String?,
         currentStopName: j['currentStopName'] as String?,
         nextStopName: j['nextStopName'] as String?,
+        nextStopLat: (j['nextStopLat'] as num?)?.toDouble(),
+        nextStopLon: (j['nextStopLon'] as num?)?.toDouble(),
+        distanceToNextStopM: (j['distanceToNextStopM'] as num?)?.toDouble(),
         passengersOnBoard: j['passengersOnBoard'] as int? ?? 0,
         hasTrip: j['tripId'] != null,
       );
+
+  bool get hasNextStop => nextStopLat != null && nextStopLon != null;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -190,8 +201,46 @@ class _LiveTrackingPageState extends ConsumerState<LiveTrackingPage> {
               TileLayer(
                 urlTemplate:
                     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                userAgentPackageName: 'com.busnow.client',
+                userAgentPackageName: 'com.iots.client',
               ),
+              // Dashed straight line: bus → next stop (helps visualise progress
+              // when the bus is not exactly on the drawn route path)
+              if (busPos != null && snap != null && snap.hasNextStop)
+                PolylineLayer(polylines: [
+                  Polyline(
+                    points: [
+                      busPos,
+                      LatLng(snap.nextStopLat!, snap.nextStopLon!),
+                    ],
+                    color: Colors.orangeAccent.withValues(alpha: 0.85),
+                    strokeWidth: 2.5,
+                    pattern: StrokePattern.dashed(segments: const [10, 8]),
+                  ),
+                ]),
+              // Next-stop pin
+              if (snap != null && snap.hasNextStop)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: LatLng(snap.nextStopLat!, snap.nextStopLon!),
+                    width: 36,
+                    height: 36,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.orangeAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orangeAccent.withValues(alpha: 0.5),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(LucideIcons.mapPin,
+                          color: Colors.white, size: 16),
+                    ),
+                  ),
+                ]),
               if (busPos != null)
                 MarkerLayer(markers: [
                   Marker(
@@ -412,6 +461,11 @@ class _WaitingForData extends StatelessWidget {
   }
 }
 
+String _fmtDist(double metres) {
+  if (metres >= 1000) return '${(metres / 1000).toStringAsFixed(1)} km';
+  return '${metres.round()} m';
+}
+
 class _SnapCard extends StatelessWidget {
   final _VehicleSnap snap;
   const _SnapCard({required this.snap});
@@ -482,17 +536,25 @@ class _SnapCard extends StatelessWidget {
           Row(
             children: [
               const Icon(LucideIcons.chevronRight,
-                  color: Colors.white54, size: 13),
+                  color: Colors.orangeAccent, size: 13),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   'Next: ${snap.nextStopName}',
-                  style:
-                      const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (snap.distanceToNextStopM != null)
+                Text(
+                  _fmtDist(snap.distanceToNextStopM!),
+                  style: const TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
             ],
           ),
         ],

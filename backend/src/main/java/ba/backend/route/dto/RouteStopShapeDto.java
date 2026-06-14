@@ -6,7 +6,7 @@ import java.util.UUID;
 public record RouteStopShapeDto(
         UUID id,
         String name,
-        int sequence,
+        int sequenceIndex,
         List<List<Double>> coordinates
 ) {
 }

@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/domain/entities/journey_entities.dart';
 import 'package:client/features/journey_planner/presentation/providers/journey_planner_providers.dart';
+import 'package:client/features/transit/presentation/pages/saved_routes_page.dart';
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,20 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
           origin: originCoords,
           destination: [destination.lon, destination.lat],
         );
+
+    // Record trip in recent history
+    final fromName = origin?.name ?? 'My Location';
+    ref.read(recentTripsProvider.notifier).addTrip(RecentTrip(
+          fromName: fromName,
+          toName: destination.name,
+          toDisplayName: destination.displayName,
+          fromLat: originCoords[1],
+          fromLon: originCoords[0],
+          toLat: destination.lat,
+          toLon: destination.lon,
+          timestamp: DateTime.now(),
+        ));
+
     if (mounted) context.push('/search');
   }
 
@@ -95,6 +110,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
     final origin = ref.watch(selectedOriginProvider);
     final dest = ref.watch(selectedDestinationProvider);
     final isPlanning = ref.watch(journeyPlanNotifierProvider).isLoading;
+    final recentTrips = ref.watch(recentTripsProvider);
 
     final originLabel = origin?.name ??
         (locAsync.value != null ? 'My Current Location' : null);
@@ -259,9 +275,9 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                   ),
                 ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.12, end: 0),
 
-                const SizedBox(height: 36),
+                const SizedBox(height: 28),
 
-                // ── Quick actions ─────────────────────────────────────────────
+                // ── Quick Actions ────────────────────────────────────────────
                 _SectionHeader(title: 'Quick Actions'),
                 const SizedBox(height: 14),
                 Padding(
@@ -270,22 +286,13 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                     children: [
                       Expanded(
                         child: _QuickCard(
-                          icon: LucideIcons.bus,
-                          label: 'Nearby\nStops',
-                          color: AppColors.primaryDark,
-                          onTap: () => context.push('/nearby'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickCard(
-                          icon: LucideIcons.map,
-                          label: 'Plan\nJourney',
+                          icon: LucideIcons.sparkles,
+                          label: 'AI Stop\nPicks',
                           color: AppColors.primary,
-                          onTap: () => context.push('/search'),
+                          onTap: () => context.push('/ai-stops'),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: _QuickCard(
                           icon: LucideIcons.bookmark,
@@ -298,43 +305,81 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                   ),
                 ).animate().fadeIn(delay: 500.ms),
 
-                const SizedBox(height: 36),
+                const SizedBox(height: 32),
 
-                // ── Recent ────────────────────────────────────────────────────
+                // ── Recent ──────────────────────────────────────────────────
                 _SectionHeader(title: 'Recent Trips'),
                 const SizedBox(height: 14),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.outlineVariant),
-                    ),
-                    child: Column(
-                      children: [
-                        _RecentTile(
-                          from: 'CBD',
-                          to: 'Remera',
-                          time: '5 min',
-                          isFirst: true,
-                          onTap: () => context.push('/search'),
-                        ),
-                        const Divider(
-                            height: 1,
-                            indent: 64,
-                            color: AppColors.outlineVariant),
-                        _RecentTile(
-                          from: 'Kimironko',
-                          to: 'Nyabugogo',
-                          time: '12 min',
-                          isLast: true,
-                          onTap: () => context.push('/search'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 650.ms),
+                  child: recentTrips.isEmpty
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.outlineVariant),
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceContainerLow,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(LucideIcons.clock,
+                                    size: 22, color: AppColors.onSurfaceVariant),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text(
+                                'No recent trips yet',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Your planned routes will appear here',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(delay: 500.ms)
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.outlineVariant),
+                          ),
+                          child: Column(
+                            children: [
+                              for (int i = 0; i < recentTrips.length; i++) ...[
+                                if (i > 0)
+                                  const Divider(
+                                      height: 1,
+                                      indent: 64,
+                                      color: AppColors.outlineVariant),
+                                _RecentTile(
+                                  from: recentTrips[i].fromName,
+                                  to: recentTrips[i].toName,
+                                  isFirst: i == 0,
+                                  isLast: i == recentTrips.length - 1,
+                                  onTap: () => context.push('/search'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ).animate().fadeIn(delay: 650.ms),
+                ),
 
                 const SizedBox(height: 120),
               ],
@@ -439,10 +484,6 @@ class _TopBar extends ConsumerWidget {
           ),
           Row(
             children: [
-              _HeaderIconButton(
-                icon: LucideIcons.bell,
-                onTap: () {},
-              ),
               const SizedBox(width: 8),
               _HeaderIconButton(
                 icon: LucideIcons.user,
@@ -755,7 +796,6 @@ class _QuickCard extends StatelessWidget {
 class _RecentTile extends StatelessWidget {
   final String from;
   final String to;
-  final String time;
   final bool isFirst;
   final bool isLast;
   final VoidCallback onTap;
@@ -763,7 +803,6 @@ class _RecentTile extends StatelessWidget {
   const _RecentTile({
     required this.from,
     required this.to,
-    required this.time,
     this.isFirst = false,
     this.isLast = false,
     required this.onTap,
@@ -804,9 +843,9 @@ class _RecentTile extends StatelessWidget {
                       color: AppColors.onSurface,
                     ),
                   ),
-                  Text(
-                    'Bus route · $time walk',
-                    style: const TextStyle(
+                  const Text(
+                    'Bus route',
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppColors.onSurfaceVariant,
                     ),

@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-006 splitStatements:true
 CREATE TABLE IF NOT EXISTS busnow_trip (
     id                      uuid PRIMARY KEY,
     tr_bus_id               uuid NOT NULL REFERENCES busnow_bus(id),

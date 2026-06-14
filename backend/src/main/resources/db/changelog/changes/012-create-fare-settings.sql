@@ -1,5 +1,4 @@
 --liquibase formatted sql
-
 --changeset ba-lambert:012-create-fare-settings
 CREATE TABLE fare_settings (
     id          UUID         NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,

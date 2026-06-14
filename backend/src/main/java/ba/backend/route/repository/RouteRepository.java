@@ -30,10 +30,10 @@ public interface RouteRepository extends JpaRepository<RouteEntity, UUID>, JpaSp
     @Query(
             value = """
                     SELECT
-                        p.route_id AS routeId,
-                        p.point_id AS pointId,
-                        p.point_name AS pointName,
-                        p.point_type AS pointType,
+                        p.route_id       AS routeId,
+                        p.point_id       AS pointId,
+                        p.point_name     AS pointName,
+                        p.point_type     AS pointType,
                         p.point_sequence AS pointSequence,
                         ST_X(p.point_geom) AS longitude,
                         ST_Y(p.point_geom) AS latitude,
@@ -46,37 +46,60 @@ public interface RouteRepository extends JpaRepository<RouteEntity, UUID>, JpaSp
                             ST_SetSRID(ST_MakePoint(:destinationLongitude, :destinationLatitude), 4326)
                         ) / 1000.0 AS walkToDestinationKm
                     FROM (
+                        -- Start bus park
+                        -- Bus park polygons are inconsistently stored: some have correct (lon,lat),
+                        -- some have swapped (lat,lon). Detect by checking whether ST_X is in the
+                        -- valid East-African longitude range (28–36°); if not, swap X and Y.
                         SELECT
-                            r.id AS route_id,
-                            bp.id AS point_id,
+                            r.id       AS route_id,
+                            bp.id      AS point_id,
                             bp.bp_name AS point_name,
                             'BUS_PARK' AS point_type,
-                            0 AS point_sequence,
-                            ST_Centroid(bp.bp_geo) AS point_geom
+                            0          AS point_sequence,
+                            CASE
+                                WHEN ST_X(ST_Centroid(bp.bp_geo)) BETWEEN 28 AND 36
+                                    THEN ST_Centroid(bp.bp_geo)
+                                ELSE ST_SetSRID(ST_MakePoint(
+                                         ST_Y(ST_Centroid(bp.bp_geo)),
+                                         ST_X(ST_Centroid(bp.bp_geo))), 4326)
+                            END AS point_geom
                         FROM busnow_route r
                         JOIN busnow_bus_park bp ON bp.id = r.rt_start_bus_park_id
 
                         UNION ALL
 
+                        -- Bus stops are ALL stored with swapped coordinates (X=lat, Y=lon).
+                        -- Rebuild each centroid with the axes corrected: MakePoint(actual_lon, actual_lat)
+                        -- where actual_lon = ST_Y (stored Y) and actual_lat = ST_X (stored X).
                         SELECT
-                            rs.route_id AS route_id,
-                            s.id AS point_id,
-                            s.bs_name AS point_name,
-                            'STOP' AS point_type,
+                            rs.route_id    AS route_id,
+                            s.id           AS point_id,
+                            s.bs_name      AS point_name,
+                            'STOP'         AS point_type,
                             rs.rs_sequence AS point_sequence,
-                            ST_Centroid(s.bs_geo) AS point_geom
+                            ST_SetSRID(ST_MakePoint(
+                                ST_Y(ST_Centroid(s.bs_geo)),
+                                ST_X(ST_Centroid(s.bs_geo))
+                            ), 4326) AS point_geom
                         FROM busnow_route_stop rs
                         JOIN busnow_bus_stop s ON s.id = rs.stop_id
 
                         UNION ALL
 
+                        -- End bus park (same correction as start bus park)
                         SELECT
-                            r.id AS route_id,
-                            bp.id AS point_id,
+                            r.id       AS route_id,
+                            bp.id      AS point_id,
                             bp.bp_name AS point_name,
                             'BUS_PARK' AS point_type,
                             COALESCE(mx.max_sequence, 0) + 1 AS point_sequence,
-                            ST_Centroid(bp.bp_geo) AS point_geom
+                            CASE
+                                WHEN ST_X(ST_Centroid(bp.bp_geo)) BETWEEN 28 AND 36
+                                    THEN ST_Centroid(bp.bp_geo)
+                                ELSE ST_SetSRID(ST_MakePoint(
+                                         ST_Y(ST_Centroid(bp.bp_geo)),
+                                         ST_X(ST_Centroid(bp.bp_geo))), 4326)
+                            END AS point_geom
                         FROM busnow_route r
                         JOIN busnow_bus_park bp ON bp.id = r.rt_end_bus_park_id
                         LEFT JOIN (

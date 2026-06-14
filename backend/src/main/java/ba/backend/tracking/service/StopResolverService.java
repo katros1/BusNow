@@ -4,23 +4,51 @@ import ba.backend.route.entity.RouteStopEntity;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 
 /**
- * Resolves the current and next bus stop for a given GPS coordinate along a route.
+ * Resolves the bus's current and next stop along a route.
  *
- * <p>Current stop = the stop whose geofence polygon contains the GPS point.
- * <br>Next stop   = lowest-sequence stop after the last passed stop.
+ * <h3>Stop-advancement algorithm</h3>
+ * <p>Two independent mechanisms can advance {@code lastPassedStopSeq}; either is sufficient:
  *
- * <p>Also exposes the next stop's centroid coordinates so callers can compute
- * distance-to-next-stop along the route geometry without re-querying the DB.
+ * <ol>
+ *   <li><b>Route-projection</b> (accurate when bus is on route): project bus and stop onto the
+ *       nearest route vertex, compare accumulated distances from the route start.  If
+ *       {@code busD > stopD + OVERSHOOT_M} the bus is past the stop.</li>
+ *   <li><b>Straight-line min-dist</b> (works even when bus is off-route): track the minimum
+ *       haversine distance the bus has ever achieved to the current next stop.  Once the distance
+ *       increases by more than {@code PASSED_INCREASE_M} beyond that minimum, the bus has passed
+ *       the stop's closest-approach point — regardless of the road it took.</li>
+ * </ol>
+ *
+ * <p>Mechanism 2 is the key fix for buses that detour via a different road: the distance
+ * decreases as the bus approaches the stop on the parallel road, reaches a minimum (closest
+ * approach), then increases — triggering the switch.
  */
 @Service
 public class StopResolverService {
 
-    /** Fallback radius when polygon geofence fails (swapped lat/lon in DB). */
-    private static final double STOP_PROXIMITY_M = 80.0;
+    /** Route-projection: how far (m) past a stop's route position before it's "passed". */
+    private static final double OVERSHOOT_M = 30.0;
+
+    /** Min-dist: bus must have come within this radius (m) of the stop to start tracking. */
+    private static final double MIN_DIST_ARM_M = 400.0;
+
+    /**
+     * Min-dist: once the bus has come within {@link #MIN_DIST_ARM_M}, it's counted as passed
+     * when the distance has increased by this many metres beyond the minimum.
+     */
+    private static final double PASSED_INCREASE_M = 80.0;
+
+    /** Proximity (m) to show the stop as "current stop" in the UI. */
+    private static final double STOP_AT_M = 150.0;
+
+    /** Legacy fallback radius for passed-zone detection when route geometry is missing. */
+    private static final double STOP_PASSED_M = 250.0;
 
     private final GeofenceService geofenceService;
 
@@ -28,89 +56,234 @@ public class StopResolverService {
         this.geofenceService = geofenceService;
     }
 
+    // ── Public API ────────────────────────────────────────────────────────────
+
     public record StopResolution(
             UUID   currentStopId,
             String currentStopName,
             int    updatedLastPassedSequence,
+            /** Updated min-distance to the (possibly new) next stop.  Caller must persist this. */
+            double updatedMinDistToNextStopM,
             String nextStopName,
-            Double nextStopLat,   // centroid of next stop polygon, null if no next stop
+            Double nextStopLat,
             Double nextStopLon
     ) {
-        static StopResolution none(int lastPassedSeq) {
-            return new StopResolution(null, null, lastPassedSeq, null, null, null);
+        static StopResolution none(int lastPassedSeq, double minDist) {
+            return new StopResolution(null, null, lastPassedSeq, minDist, null, null, null);
         }
     }
 
-    public StopResolution resolve(List<RouteStopEntity> stops, double lat, double lon, int lastPassedSeq) {
-        if (stops == null || stops.isEmpty()) return StopResolution.none(lastPassedSeq);
+    /**
+     * @param stops                 route stop list (any order)
+     * @param routeGeo              route LineString (may be null — triggers proximity fallback)
+     * @param lat                   current bus latitude
+     * @param lon                   current bus longitude
+     * @param lastPassedSeq         highest sequence already confirmed passed
+     * @param minDistToNextStopM    minimum haversine distance the bus has achieved to the
+     *                              current next stop so far; {@link Double#MAX_VALUE} on trip start
+     *                              or immediately after a stop advance
+     */
+    public StopResolution resolve(List<RouteStopEntity> stops, LineString routeGeo,
+                                  double lat, double lon,
+                                  int lastPassedSeq, double minDistToNextStopM) {
+        if (stops == null || stops.isEmpty()) return StopResolution.none(lastPassedSeq, minDistToNextStopM);
 
-        // Detect current stop via geofence, then proximity fallback for swapped-coordinate DBs
-        RouteStopEntity current = null;
-        for (RouteStopEntity rs : stops) {
-            try {
-                if (rs.getStop() != null && rs.getStop().getGeo() != null
-                        && geofenceService.contains(rs.getStop().getGeo(), lat, lon)) {
-                    current = rs;
-                    break;
+        List<RouteStopEntity> sorted = stops.stream()
+                .filter(rs -> rs.getStop() != null && rs.getStop().getGeo() != null)
+                .sorted(Comparator.comparingInt(RouteStopEntity::getSequence))
+                .collect(Collectors.toList());
+
+        if (sorted.isEmpty()) return StopResolution.none(lastPassedSeq, minDistToNextStopM);
+
+        return routeGeo != null
+                ? resolveWithRoute(sorted, routeGeo, lat, lon, lastPassedSeq, minDistToNextStopM)
+                : resolveProximityFallback(sorted, lat, lon, lastPassedSeq, minDistToNextStopM);
+    }
+
+    // ── Primary algorithm (route geometry available) ──────────────────────────
+
+    private StopResolution resolveWithRoute(List<RouteStopEntity> sorted, LineString routeGeo,
+                                            double lat, double lon,
+                                            int lastPassedSeq, double minDistToNextStopM) {
+        double busD = GeoUtils.distanceFromStartM(routeGeo, lat, lon);
+
+        int newLastPassed = lastPassedSeq;
+        double newMinDist = minDistToNextStopM;
+
+        for (RouteStopEntity rs : sorted) {
+            if (rs.getSequence() <= newLastPassed) continue;
+
+            double[] c = centroidLatLon(rs);
+            if (c == null) continue;
+
+            boolean passed = false;
+
+            // ── Mechanism 1: route projection ─────────────────────────────────
+            double stopD = GeoUtils.distanceFromStartM(routeGeo, c[0], c[1]);
+            if (busD > stopD + OVERSHOOT_M) {
+                passed = true;
+            }
+
+            // ── Mechanism 2: straight-line min-dist (handles off-route buses) ─
+            if (!passed) {
+                double straightDist = GeoUtils.haversineM(lat, lon, c[0], c[1]);
+                if (straightDist < newMinDist) {
+                    newMinDist = straightDist; // bus is approaching → update minimum
                 }
-            } catch (Exception ignored) {}
-        }
+                if (newMinDist < MIN_DIST_ARM_M && straightDist > newMinDist + PASSED_INCREASE_M) {
+                    passed = true; // bus was close, has now moved away → passed
+                }
+            }
 
-        if (current == null) {
-            for (RouteStopEntity rs : stops) {
-                if (rs.getStop() == null || rs.getStop().getGeo() == null) continue;
-                try {
-                    Point centroid = rs.getStop().getGeo().getCentroid();
-                    double rawY = centroid.getY(), rawX = centroid.getX();
-                    double cLat, cLon;
-                    if (Math.abs(rawY) > 10 && Math.abs(rawX) < 5) {
-                        cLat = rawX; cLon = rawY;
-                    } else {
-                        cLat = rawY; cLon = rawX;
-                    }
-                    if (GeoUtils.haversineM(lat, lon, cLat, cLon) <= STOP_PROXIMITY_M) {
-                        current = rs;
-                        break;
-                    }
-                } catch (Exception ignored) {}
+            if (passed) {
+                newLastPassed = rs.getSequence();
+                newMinDist = Double.MAX_VALUE; // reset for the next stop
+            } else {
+                break; // sorted → once we hit a non-passed stop, no further stops are passed
             }
         }
 
-        int newLastPassed = (current != null && current.getSequence() > lastPassedSeq)
-                ? current.getSequence() : lastPassedSeq;
+        RouteStopEntity current = nearbyStop(sorted, lat, lon, newLastPassed);
 
-        // Find next stop (lowest sequence above the last passed)
-        int effectiveSeq = newLastPassed;
-        RouteStopEntity nextStopEntity = stops.stream()
+        final int effectiveSeq = newLastPassed;
+        RouteStopEntity nextStop = sorted.stream()
                 .filter(rs -> rs.getSequence() > effectiveSeq)
                 .min(Comparator.comparingInt(RouteStopEntity::getSequence))
                 .orElse(null);
 
-        String nextStopName = nextStopEntity != null ? nextStopEntity.getStop().getName() : null;
-        Double nextStopLat  = null;
-        Double nextStopLon  = null;
-        if (nextStopEntity != null && nextStopEntity.getStop().getGeo() != null) {
-            Point centroid = nextStopEntity.getStop().getGeo().getCentroid();
-            double rawY = centroid.getY();  // expected lat in JTS convention
-            double rawX = centroid.getX();  // expected lon in JTS convention
-            // If coordinates were stored with (lat, lon) instead of (lon, lat) in PostGIS,
-            // getY() returns the stored lon and getX() returns the stored lat.
-            // Detect by checking if rawY looks like a longitude (large absolute value
-            // typical of African longitudes ~28-36°) and rawX like a latitude (small, ~-3 to 0).
-            if (Math.abs(rawY) > 10 && Math.abs(rawX) < 5) {
-                nextStopLat = rawX;
-                nextStopLon = rawY;
-            } else {
-                nextStopLat = rawY;
-                nextStopLon = rawX;
+        // If we didn't advance this tick, update minDist for the current next stop
+        if (nextStop != null && newMinDist == minDistToNextStopM) {
+            double[] nc = centroidLatLon(nextStop);
+            if (nc != null) {
+                double d = GeoUtils.haversineM(lat, lon, nc[0], nc[1]);
+                if (d < newMinDist) newMinDist = d;
             }
         }
 
-        if (current != null) {
-            return new StopResolution(
-                    current.getStop().getId(), current.getStop().getName(),
-                    newLastPassed, nextStopName, nextStopLat, nextStopLon);
+        return buildResolution(current, nextStop, newLastPassed, newMinDist);
+    }
+
+    // ── Proximity fallback (no route geometry) ────────────────────────────────
+
+    private StopResolution resolveProximityFallback(List<RouteStopEntity> sorted,
+                                                    double lat, double lon,
+                                                    int lastPassedSeq, double minDistToNextStopM) {
+        RouteStopEntity current = null;
+        for (RouteStopEntity rs : sorted) {
+            if (rs.getSequence() <= lastPassedSeq) continue;
+            try {
+                if (geofenceService.contains(rs.getStop().getGeo(), lat, lon)) { current = rs; break; }
+            } catch (Exception ignored) {}
         }
-        return new StopResolution(null, null, newLastPassed, nextStopName, nextStopLat, nextStopLon);
+        if (current == null) {
+            for (RouteStopEntity rs : sorted) {
+                if (rs.getSequence() <= lastPassedSeq) continue;
+                double[] c = centroidLatLon(rs);
+                if (c != null && GeoUtils.haversineM(lat, lon, c[0], c[1]) <= STOP_AT_M) { current = rs; break; }
+            }
+        }
+
+        int newLastPassed = lastPassedSeq;
+        double newMinDist = minDistToNextStopM;
+
+        if (current != null && current.getSequence() > newLastPassed) {
+            newLastPassed = current.getSequence();
+            newMinDist = Double.MAX_VALUE;
+        } else {
+            // Passed-zone + min-dist
+            for (int i = 0; i < sorted.size(); i++) {
+                RouteStopEntity rs = sorted.get(i);
+                if (rs.getSequence() <= newLastPassed) continue;
+                double[] cThis = centroidLatLon(rs);
+                if (cThis == null) continue;
+                double distToThis = GeoUtils.haversineM(lat, lon, cThis[0], cThis[1]);
+
+                boolean passed = false;
+
+                // proximity passed-zone
+                if (distToThis <= STOP_PASSED_M && i + 1 < sorted.size()) {
+                    double[] cNext = centroidLatLon(sorted.get(i + 1));
+                    if (cNext != null && GeoUtils.haversineM(lat, lon, cNext[0], cNext[1]) < distToThis) {
+                        passed = true;
+                    }
+                }
+
+                // min-dist
+                if (!passed) {
+                    if (distToThis < newMinDist) newMinDist = distToThis;
+                    if (newMinDist < MIN_DIST_ARM_M && distToThis > newMinDist + PASSED_INCREASE_M) {
+                        passed = true;
+                    }
+                }
+
+                if (passed) {
+                    newLastPassed = rs.getSequence();
+                    newMinDist = Double.MAX_VALUE;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        final int effectiveSeq = newLastPassed;
+        RouteStopEntity nextStop = sorted.stream()
+                .filter(rs -> rs.getSequence() > effectiveSeq)
+                .min(Comparator.comparingInt(RouteStopEntity::getSequence))
+                .orElse(null);
+
+        if (nextStop != null && newMinDist == minDistToNextStopM) {
+            double[] nc = centroidLatLon(nextStop);
+            if (nc != null) { double d = GeoUtils.haversineM(lat, lon, nc[0], nc[1]); if (d < newMinDist) newMinDist = d; }
+        }
+
+        return buildResolution(current, nextStop, newLastPassed, newMinDist);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private RouteStopEntity nearbyStop(List<RouteStopEntity> sorted, double lat, double lon,
+                                       int newLastPassed) {
+        RouteStopEntity best = null;
+        double bestDist = STOP_AT_M;
+        for (RouteStopEntity rs : sorted) {
+            if (rs.getSequence() > newLastPassed + 1) break;
+            double[] c = centroidLatLon(rs);
+            if (c == null) continue;
+            double d = GeoUtils.haversineM(lat, lon, c[0], c[1]);
+            if (d < bestDist) { bestDist = d; best = rs; }
+        }
+        return best;
+    }
+
+    private StopResolution buildResolution(RouteStopEntity current, RouteStopEntity nextStop,
+                                           int newLastPassed, double newMinDist) {
+        String nextName = null;
+        Double nextLat  = null;
+        Double nextLon  = null;
+        if (nextStop != null) {
+            nextName = nextStop.getStop().getName();
+            double[] c = centroidLatLon(nextStop);
+            if (c != null) { nextLat = c[0]; nextLon = c[1]; }
+        }
+        if (current != null) {
+            return new StopResolution(current.getStop().getId(), current.getStop().getName(),
+                    newLastPassed, newMinDist, nextName, nextLat, nextLon);
+        }
+        return new StopResolution(null, null, newLastPassed, newMinDist, nextName, nextLat, nextLon);
+    }
+
+    private double[] centroidLatLon(RouteStopEntity rs) {
+        if (rs.getStop() == null || rs.getStop().getGeo() == null) return null;
+        try {
+            Point centroid = rs.getStop().getGeo().getCentroid();
+            double rawY = centroid.getY();
+            double rawX = centroid.getX();
+            if (Math.abs(rawY) > 10 && Math.abs(rawX) < 5) {
+                return new double[]{rawX, rawY};
+            }
+            return new double[]{rawY, rawX};
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

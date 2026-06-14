@@ -14,13 +14,15 @@ class RouteSuggestion extends Equatable {
   final List<LatLng> routeCoordinates;
   final RoutePoint boardingPoint;
   final RoutePoint destinationPoint;
-  final double walkToBoardingKm;
-  final double walkToDestinationKm;
+  final double? walkToBoardingKm;         // null when GPS was unavailable at search time
+  final double distanceToDestinationKm;   // walking distance from alighting stop to destination
   final double totalWalkingKm;
   final int walkToBoardingMinutes;
-  final int walkToDestinationMinutes;
+  final int distanceToDestinationMinutes;
   final int totalWalkingMinutes;
   final String tier;
+  final int fareAmount;
+  final int requiredCardBalance;
 
   const RouteSuggestion({
     required this.routeId,
@@ -28,13 +30,15 @@ class RouteSuggestion extends Equatable {
     required this.routeCoordinates,
     required this.boardingPoint,
     required this.destinationPoint,
-    required this.walkToBoardingKm,
-    required this.walkToDestinationKm,
+    this.walkToBoardingKm,
+    required this.distanceToDestinationKm,
     required this.totalWalkingKm,
     required this.walkToBoardingMinutes,
-    required this.walkToDestinationMinutes,
+    required this.distanceToDestinationMinutes,
     required this.totalWalkingMinutes,
     required this.tier,
+    this.fareAmount = 0,
+    this.requiredCardBalance = 0,
   });
 
   @override
@@ -107,7 +111,7 @@ class RouteStopPoint extends Equatable {
     return RouteStopPoint(
       id: json['id'] as String,
       name: json['name'] as String,
-      sequence: json['sequence'] as int,
+      sequence: (json['sequenceIndex'] ?? json['sequence']) as int,
       coordinates: count > 0
           ? LatLng(sumLat / count, sumLng / count)
           : const LatLng(0, 0),

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:client/core/services/notification_service.dart';
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/domain/entities/journey_entities.dart';
 import 'package:client/features/journey_planner/presentation/providers/journey_planner_providers.dart';
@@ -30,6 +31,65 @@ String _tierLabel(String tier) => switch (tier) {
       _ => 'Long walk',
     };
 
+// ─── Map layer provider ───────────────────────────────────────────────────────
+
+enum MapLayer { osm, satellite }
+
+final class _MapLayerNotifier extends Notifier<MapLayer> {
+  @override
+  MapLayer build() => MapLayer.osm;
+  void toggle() => state = state == MapLayer.osm ? MapLayer.satellite : MapLayer.osm;
+}
+
+final _mapLayerProvider =
+    NotifierProvider<_MapLayerNotifier, MapLayer>(_MapLayerNotifier.new);
+
+// ─── Follow-vehicle provider (plate being followed, null = free camera) ───────
+
+final class _FollowPlateNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void follow(String? plate) => state = plate;
+}
+
+final _followPlateProvider =
+    NotifierProvider<_FollowPlateNotifier, String?>(_FollowPlateNotifier.new);
+
+// ─── Notified plates (fire alert only once per session per plate) ─────────────
+
+final class _NotifiedPlatesNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+  void add(String plate) => state = {...state, plate};
+}
+
+final _notifiedPlatesProvider =
+    NotifierProvider<_NotifiedPlatesNotifier, Set<String>>(
+        _NotifiedPlatesNotifier.new);
+
+// ─── ETA helper ──────────────────────────────────────────────────────────────
+
+/// Haversine distance in km between two points.
+double _haversineKm(LatLng a, LatLng b) {
+  const r = 6371.0;
+  final dLat = (b.latitude - a.latitude) * math.pi / 180;
+  final dLng = (b.longitude - a.longitude) * math.pi / 180;
+  final x = math.sin(dLat / 2) * math.sin(dLat / 2) +
+      math.cos(a.latitude * math.pi / 180) *
+          math.cos(b.latitude * math.pi / 180) *
+          math.sin(dLng / 2) *
+          math.sin(dLng / 2);
+  return r * 2 * math.atan2(math.sqrt(x), math.sqrt(1 - x));
+}
+
+/// Returns ETA in minutes for a vehicle to reach [boardingPoint].
+/// Uses speed if available, otherwise falls back to a ~20 km/h average.
+int _etaMinutes(RouteVehicleSnap v, LatLng boardingPoint) {
+  final distKm = _haversineKm(v.latLng, boardingPoint);
+  final speedKmh = (v.speedKmh != null && v.speedKmh! > 2) ? v.speedKmh! : 20.0;
+  return (distKm / speedKmh * 60).round().clamp(0, 9999);
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 class RouteDetailsPage extends ConsumerStatefulWidget {
@@ -42,6 +102,7 @@ class RouteDetailsPage extends ConsumerStatefulWidget {
 class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
   final _mapController = MapController();
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _userInteractingWithMap = false;
 
   @override
   void dispose() {
@@ -64,6 +125,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
   }
 
   void _fitMap(RouteSuggestion s, LatLng? origin, LatLng? dest) {
+    if (_userInteractingWithMap) return;
     final all = [
       ...s.routeCoordinates,
       s.boardingPoint.coordinates,
@@ -85,6 +147,52 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
           LatLng(minLat, minLng), LatLng(maxLat, maxLng)),
       padding: const EdgeInsets.fromLTRB(40, 80, 40, 360),
     ));
+  }
+
+  void _maybeFollowVehicle(List<RouteVehicleSnap> vehicles) {
+    final followPlate = ref.read(_followPlateProvider);
+    if (followPlate == null) return;
+    final target = vehicles.where((v) => v.plateNumber == followPlate).firstOrNull;
+    if (target == null) return;
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(target.latLng, currentZoom);
+  }
+
+  void _checkArrivalAlerts(
+      List<RouteVehicleSnap> vehicles, LatLng boardingPoint, BuildContext ctx) {
+    final notified = ref.read(_notifiedPlatesProvider);
+    for (final v in vehicles) {
+      if (notified.contains(v.plateNumber)) continue;
+      final eta = _etaMinutes(v, boardingPoint);
+      if (eta <= 2) {
+        // Mark as notified immediately to avoid repeat
+        ref.read(_notifiedPlatesProvider.notifier).add(v.plateNumber);
+        // Local notification (works backgrounded)
+        NotificationService.instance.showBusApproaching(v.plateNumber, eta);
+        // In-app SnackBar (guaranteed foreground fallback)
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.primary,
+              duration: const Duration(seconds: 5),
+              content: Row(
+                children: [
+                  const Icon(LucideIcons.bus, color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${v.plateNumber} is ~$eta min away! Head to your boarding stop.',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -129,8 +237,18 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
         v.lastPassedStopSeq <= boardingSeq ||
         continuedPlates.contains(v.plateNumber)).toList();
 
+    final mapLayer = ref.watch(_mapLayerProvider);
+    final followPlate = ref.watch(_followPlateProvider);
+
+    // Follow vehicle camera
+    _maybeFollowVehicle(liveVehicles);
+
+    // 2-min arrival alerts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fitMap(suggestion, originLatLng, destLatLng);
+      _checkArrivalAlerts(liveVehicles, suggestion.boardingPoint.coordinates, context);
+      if (followPlate == null) {
+        _fitMap(suggestion, originLatLng, destLatLng);
+      }
     });
 
     return Scaffold(
@@ -152,6 +270,9 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
             mapController: _mapController,
             stopsAsync: stopsAsync,
             liveVehicles: liveVehicles,
+            mapLayer: mapLayer,
+            followPlate: followPlate,
+            onMapInteract: () => _userInteractingWithMap = true,
           ),
 
           // ── Top overlay ───────────────────────────────────────────────────
@@ -203,6 +324,43 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
             ),
           ),
 
+          // ── Map layer + follow-vehicle controls (bottom-right above sheet) ─
+          Positioned(
+            right: 12,
+            bottom: MediaQuery.of(context).size.height * 0.42,
+            child: Column(
+              children: [
+                // Satellite / OSM toggle
+                _MapButton(
+                  icon: mapLayer == MapLayer.osm
+                      ? LucideIcons.satellite
+                      : LucideIcons.map,
+                  onTap: () =>
+                      ref.read(_mapLayerProvider.notifier).toggle(),
+                ),
+                const SizedBox(height: 8),
+                // Follow-vehicle toggle (only shown when vehicles present)
+                if (liveVehicles.isNotEmpty)
+                  _MapButton(
+                    icon: followPlate != null
+                        ? LucideIcons.crosshair
+                        : LucideIcons.crosshair,
+                    active: followPlate != null,
+                    onTap: () {
+                      if (followPlate != null) {
+                        ref.read(_followPlateProvider.notifier).follow(null);
+                        _userInteractingWithMap = false;
+                      } else {
+                        ref.read(_followPlateProvider.notifier)
+                            .follow(liveVehicles.first.plateNumber);
+                        _userInteractingWithMap = false;
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+
           // ── Bottom detail sheet ───────────────────────────────────────────
           DraggableScrollableSheet(
             initialChildSize: 0.4,
@@ -234,6 +392,9 @@ class _RouteMap extends StatelessWidget {
   final MapController mapController;
   final AsyncValue<List<RouteStopPoint>> stopsAsync;
   final List<RouteVehicleSnap> liveVehicles;
+  final MapLayer mapLayer;
+  final String? followPlate;
+  final VoidCallback onMapInteract;
 
   const _RouteMap({
     required this.suggestion,
@@ -242,12 +403,19 @@ class _RouteMap extends StatelessWidget {
     required this.mapController,
     required this.stopsAsync,
     required this.liveVehicles,
+    required this.mapLayer,
+    required this.followPlate,
+    required this.onMapInteract,
   });
 
   @override
   Widget build(BuildContext context) {
     final boarding  = suggestion.boardingPoint.coordinates;
     final alighting = suggestion.destinationPoint.coordinates;
+
+    final tileUrl = mapLayer == MapLayer.satellite
+        ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     return FlutterMap(
       mapController: mapController,
@@ -256,13 +424,29 @@ class _RouteMap extends StatelessWidget {
         initialZoom: 14,
         interactionOptions:
             const InteractionOptions(flags: InteractiveFlag.all),
+        onMapEvent: (event) {
+          if (event.source == MapEventSource.dragStart ||
+              event.source == MapEventSource.scrollWheel ||
+              event.source == MapEventSource.multiFingerGestureStart) {
+            onMapInteract();
+          }
+        },
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.busnow.client',
+          urlTemplate: tileUrl,
+          userAgentPackageName: 'com.iots.client',
           maxZoom: 19,
         ),
+
+        // Satellite label overlay (roads/names on top of imagery)
+        if (mapLayer == MapLayer.satellite)
+          TileLayer(
+            urlTemplate:
+                'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+            userAgentPackageName: 'com.iots.client',
+            maxZoom: 19,
+          ),
 
         // Walk: origin → boarding (dashed)
         if (originLatLng != null)
@@ -297,7 +481,7 @@ class _RouteMap extends StatelessWidget {
             ),
           ]),
 
-        // Key markers only — no intermediate stop dots to avoid clutter
+        // Key markers
         MarkerLayer(
           markers: [
             if (originLatLng != null)
@@ -309,15 +493,21 @@ class _RouteMap extends StatelessWidget {
           ],
         ),
 
-        // Live bus triangles — pointing in heading direction, realtime
+        // Live bus triangles — directional, no wrapper circle
         if (liveVehicles.isNotEmpty)
           MarkerLayer(
-            markers: liveVehicles.map((v) => Marker(
-              point: v.latLng,
-              width: 48,
-              height: 48,
-              child: _LiveBusMarker(heading: v.headingDeg),
-            )).toList(),
+            markers: liveVehicles.map((v) {
+              final isFollowed = followPlate == v.plateNumber;
+              return Marker(
+                point: v.latLng,
+                width: 48,
+                height: 48,
+                child: _LiveBusMarker(
+                  heading: v.headingDeg,
+                  highlighted: isFollowed,
+                ),
+              );
+            }).toList(),
           ),
       ],
     );
@@ -357,7 +547,8 @@ class _RouteMap extends StatelessWidget {
 class _MapButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _MapButton({required this.icon, required this.onTap});
+  final bool active;
+  const _MapButton({required this.icon, required this.onTap, this.active = false});
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +558,7 @@ class _MapButton extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: active ? AppColors.primary : Colors.white,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
@@ -377,7 +568,9 @@ class _MapButton extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, size: 20, color: AppColors.onSurface),
+        child: Icon(icon,
+            size: 20,
+            color: active ? Colors.white : AppColors.onSurface),
       ),
     );
   }
@@ -409,7 +602,6 @@ class _DetailSheet extends StatelessWidget {
     final tc = _tierColor(suggestion.tier);
     final tl = _tierLabel(suggestion.tier);
 
-    // Stops between boarding and alighting (inclusive boundaries shown separately)
     final intermediateStops = stopsAsync.value
             ?.where((s) =>
                 s.sequence > suggestion.boardingPoint.sequence &&
@@ -492,8 +684,12 @@ class _DetailSheet extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // ── Live vehicles approaching your boarding stop ───────────
-                _LiveVehiclesSection(vehicles: liveVehicles),
+                // Live vehicles section
+                _LiveVehiclesSection(
+                  vehicles: liveVehicles,
+                  boardingPoint: suggestion.boardingPoint.coordinates,
+                  routeId: suggestion.routeId,
+                ),
 
                 const SizedBox(height: 20),
 
@@ -505,6 +701,7 @@ class _DetailSheet extends StatelessWidget {
                   walkMin: suggestion.walkToBoardingMinutes,
                   walkFrom: originLabel,
                   accent: _kWalkGreen,
+                  gpsUnavailable: suggestion.walkToBoardingKm == null,
                 ),
 
                 const SizedBox(height: 12),
@@ -523,8 +720,8 @@ class _DetailSheet extends StatelessWidget {
                 _BoardingCard(
                   label: 'ALIGHT HERE',
                   point: suggestion.destinationPoint,
-                  walkKm: suggestion.walkToDestinationKm,
-                  walkMin: suggestion.walkToDestinationMinutes,
+                  walkKm: suggestion.distanceToDestinationKm,
+                  walkMin: suggestion.distanceToDestinationMinutes,
                   walkFrom: suggestion.destinationPoint.pointName,
                   walkTo: destLabel,
                   accent: _kAlightOrange,
@@ -549,7 +746,6 @@ class _DetailSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-
               ],
             ),
           ),
@@ -578,8 +774,7 @@ class _StatsRow extends StatelessWidget {
         children: [
           _Stat(
             icon: LucideIcons.footprints,
-            value:
-                '${suggestion.totalWalkingKm.toStringAsFixed(2)} km',
+            value: '${suggestion.totalWalkingKm.toStringAsFixed(2)} km',
             label: 'Total walk',
             color: AppColors.primary,
           ),
@@ -596,6 +791,15 @@ class _StatsRow extends StatelessWidget {
             value: suggestion.boardingPoint.isBusPark ? 'Park' : 'Stop',
             label: 'Board via',
             color: _kWalkGreen,
+          ),
+          _Divider(),
+          _Stat(
+            icon: LucideIcons.banknote,
+            value: suggestion.fareAmount > 0
+                ? '${suggestion.fareAmount} RWF'
+                : '—',
+            label: 'Fare',
+            color: AppColors.primaryDark,
           ),
         ],
       ),
@@ -623,9 +827,11 @@ class _Stat extends StatelessWidget {
           const SizedBox(height: 4),
           Text(value,
               style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: color)),
+                  color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
           Text(label,
               style: const TextStyle(
                   fontSize: 10,
@@ -649,11 +855,12 @@ class _Divider extends StatelessWidget {
 class _BoardingCard extends StatelessWidget {
   final String label;
   final RoutePoint point;
-  final double walkKm;
+  final double? walkKm;
   final int walkMin;
   final String walkFrom;
   final String? walkTo;
   final Color accent;
+  final bool gpsUnavailable;
 
   const _BoardingCard({
     required this.label,
@@ -663,22 +870,29 @@ class _BoardingCard extends StatelessWidget {
     required this.walkFrom,
     this.walkTo,
     required this.accent,
+    this.gpsUnavailable = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isBoarding = walkTo == null;
-    final walkDesc = isBoarding
-        ? 'Walk ${walkKm.toStringAsFixed(2)} km ($walkMin min) from $walkFrom'
-        : 'Walk ${walkKm.toStringAsFixed(2)} km ($walkMin min) to $walkTo';
+    final String walkDesc;
+    if (isBoarding && gpsUnavailable) {
+      walkDesc = 'Enable GPS to see walking distance to boarding stop';
+    } else if (walkKm != null) {
+      walkDesc = isBoarding
+          ? 'Walk ${walkKm!.toStringAsFixed(2)} km ($walkMin min) from $walkFrom'
+          : 'Walk ${walkKm!.toStringAsFixed(2)} km ($walkMin min) to $walkTo';
+    } else {
+      walkDesc = isBoarding ? 'Walk from $walkFrom' : 'Walk to $walkTo';
+    }
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(14),
-        border:
-            Border.all(color: accent.withValues(alpha: 0.22)),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -745,8 +959,7 @@ class _BoardingCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(LucideIcons.footprints,
-                        size: 11,
-                        color: AppColors.onSurfaceVariant),
+                        size: 11, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(walkDesc,
@@ -800,7 +1013,6 @@ class _StopsSectionState extends State<_StopsSection> {
       ),
       child: Column(
         children: [
-          // Header (always visible)
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: BorderRadius.circular(14),
@@ -863,7 +1075,6 @@ class _StopsSectionState extends State<_StopsSection> {
             ),
           ),
 
-          // Expanded stops list
           AnimatedCrossFade(
             duration: 250.ms,
             crossFadeState: _expanded
@@ -934,7 +1145,6 @@ class _StopTimelineRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Timeline line + dot
           SizedBox(
             width: 52,
             child: Column(
@@ -966,8 +1176,7 @@ class _StopTimelineRow extends StatelessWidget {
                     child: Center(
                       child: Container(
                           width: 2,
-                          color:
-                              _kRouteBlue.withValues(alpha: 0.3)),
+                          color: _kRouteBlue.withValues(alpha: 0.3)),
                     ),
                   )
                 else
@@ -975,7 +1184,6 @@ class _StopTimelineRow extends StatelessWidget {
               ],
             ),
           ),
-          // Stop info
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
@@ -1124,6 +1332,16 @@ class _StepsDrawer extends StatelessWidget {
                     label: 'Walk time',
                     value: '${suggestion.totalWalkingMinutes} min',
                   ),
+                  if (suggestion.fareAmount > 0) ...[
+                    Container(
+                        width: 1,
+                        height: 32,
+                        color: AppColors.primary.withValues(alpha: 0.18)),
+                    _FooterStat(
+                      label: 'Fare',
+                      value: '${suggestion.fareAmount} RWF',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1144,10 +1362,12 @@ class _StepsDrawer extends StatelessWidget {
         _StepData(
           icon: LucideIcons.footprints,
           color: _kWalkGreen,
-          title:
-              'Walk ${suggestion.walkToBoardingKm.toStringAsFixed(2)} km',
-          subtitle:
-              '${suggestion.walkToBoardingMinutes} min on foot',
+          title: suggestion.walkToBoardingKm != null
+              ? 'Walk ${suggestion.walkToBoardingKm!.toStringAsFixed(2)} km'
+              : 'Walk to boarding stop',
+          subtitle: suggestion.walkToBoardingKm != null
+              ? '${suggestion.walkToBoardingMinutes} min on foot'
+              : 'GPS unavailable — distance unknown',
           tag: 'WALK',
           isConnector: true,
         ),
@@ -1190,9 +1410,9 @@ class _StepsDrawer extends StatelessWidget {
           icon: LucideIcons.footprints,
           color: _kAlightOrange,
           title:
-              'Walk ${suggestion.walkToDestinationKm.toStringAsFixed(2)} km',
+              'Walk ${suggestion.distanceToDestinationKm.toStringAsFixed(2)} km',
           subtitle:
-              '${suggestion.walkToDestinationMinutes} min on foot',
+              '${suggestion.distanceToDestinationMinutes} min on foot',
           tag: 'WALK',
           isConnector: true,
         ),
@@ -1336,7 +1556,8 @@ class _StepRow extends StatelessWidget {
 
 class _LiveBusMarker extends StatefulWidget {
   final double? heading;
-  const _LiveBusMarker({this.heading});
+  final bool highlighted;
+  const _LiveBusMarker({this.heading, this.highlighted = false});
 
   @override
   State<_LiveBusMarker> createState() => _LiveBusMarkerState();
@@ -1368,6 +1589,7 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
   @override
   Widget build(BuildContext context) {
     final headingRad = (widget.heading ?? 0) * math.pi / 180;
+    final color = widget.highlighted ? AppColors.error : AppColors.primary;
 
     return AnimatedBuilder(
       animation: _pulse,
@@ -1379,18 +1601,17 @@ class _LiveBusMarkerState extends State<_LiveBusMarker>
             width: 54 * _pulse.value,
             height: 54 * _pulse.value,
             decoration: BoxDecoration(
-              color: AppColors.primary
-                  .withValues(alpha: (1 - _pulse.value) * 0.35),
+              color: color.withValues(alpha: (1 - _pulse.value) * 0.35),
               shape: BoxShape.circle,
             ),
           ),
-          // Rotating triangle — points in heading direction
+          // Directional triangle — no wrapper circle
           Transform.rotate(
             angle: headingRad,
             child: CustomPaint(
               size: const Size(38, 38),
               painter: _TrianglePainter(
-                color: AppColors.primary,
+                color: color,
                 borderColor: Colors.white,
               ),
             ),
@@ -1414,9 +1635,9 @@ class _TrianglePainter extends CustomPainter {
     final r  = size.width / 2;
 
     final path = ui.Path()
-      ..moveTo(cx,              cy - r)           // tip (north)
-      ..lineTo(cx + r * 0.82,  cy + r * 0.60)    // bottom-right
-      ..lineTo(cx - r * 0.82,  cy + r * 0.60)    // bottom-left
+      ..moveTo(cx,             cy - r)
+      ..lineTo(cx + r * 0.82, cy + r * 0.60)
+      ..lineTo(cx - r * 0.82, cy + r * 0.60)
       ..close();
 
     canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
@@ -1437,18 +1658,30 @@ class _TrianglePainter extends CustomPainter {
 
 // ─── Live vehicles section ────────────────────────────────────────────────────
 
-class _LiveVehiclesSection extends StatelessWidget {
+class _LiveVehiclesSection extends ConsumerWidget {
   final List<RouteVehicleSnap> vehicles;
-  const _LiveVehiclesSection({required this.vehicles});
+  final LatLng boardingPoint;
+  final String routeId;
+
+  const _LiveVehiclesSection({
+    required this.vehicles,
+    required this.boardingPoint,
+    required this.routeId,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch live so stop names update on every WebSocket push
+    final liveAll = ref
+        .watch(routeVehiclesForPassengerProvider(routeId))
+        .value ?? vehicles;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: vehicles.isEmpty
+          color: liveAll.isEmpty
               ? AppColors.outlineVariant
               : AppColors.primary.withValues(alpha: 0.25),
         ),
@@ -1456,7 +1689,7 @@ class _LiveVehiclesSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
+          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
             child: Row(
@@ -1465,7 +1698,7 @@ class _LiveVehiclesSection extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: vehicles.isEmpty
+                    color: liveAll.isEmpty
                         ? AppColors.surfaceContainerLow
                         : AppColors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
@@ -1473,7 +1706,7 @@ class _LiveVehiclesSection extends StatelessWidget {
                   child: Icon(
                     LucideIcons.bus,
                     size: 16,
-                    color: vehicles.isEmpty
+                    color: liveAll.isEmpty
                         ? AppColors.onSurfaceVariant
                         : AppColors.primary,
                   ),
@@ -1484,35 +1717,34 @@ class _LiveVehiclesSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        vehicles.isEmpty
+                        liveAll.isEmpty
                             ? 'No buses approaching yet'
-                            : '${vehicles.length} bus${vehicles.length == 1 ? '' : 'es'} approaching',
+                            : '${liveAll.length} bus${liveAll.length == 1 ? '' : 'es'} approaching',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: vehicles.isEmpty
+                          color: liveAll.isEmpty
                               ? AppColors.onSurfaceVariant
                               : AppColors.onSurface,
                         ),
                       ),
-                      Text(
+                      const Text(
                         'Live · updates in realtime',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             color: AppColors.onSurfaceVariant),
                       ),
                     ],
                   ),
                 ),
-                // Live dot
-                if (vehicles.isNotEmpty)
+                if (liveAll.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
@@ -1536,11 +1768,14 @@ class _LiveVehiclesSection extends StatelessWidget {
               ],
             ),
           ),
-          // ── Vehicle rows ─────────────────────────────────────────────────
-          if (vehicles.isNotEmpty) ...[
+          // Vehicle rows
+          if (liveAll.isNotEmpty) ...[
             const SizedBox(height: 10),
             const Divider(height: 1, color: AppColors.outlineVariant),
-            ...vehicles.map((v) => _LiveVehicleRow(vehicle: v)),
+            ...liveAll.map((v) => _LiveVehicleRow(
+                  vehicle: v,
+                  boardingPoint: boardingPoint,
+                )),
           ] else
             const Padding(
               padding: EdgeInsets.fromLTRB(14, 8, 14, 14),
@@ -1558,114 +1793,151 @@ class _LiveVehiclesSection extends StatelessWidget {
 
 class _LiveVehicleRow extends ConsumerWidget {
   final RouteVehicleSnap vehicle;
-  const _LiveVehicleRow({required this.vehicle});
+  final LatLng boardingPoint;
+  const _LiveVehicleRow({required this.vehicle, required this.boardingPoint});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final speed = vehicle.speedKmh != null
         ? '${vehicle.speedKmh!.round()} km/h'
         : null;
+    final eta = _etaMinutes(vehicle, boardingPoint);
+    final isFollowed = ref.watch(_followPlateProvider) == vehicle.plateNumber;
 
     return InkWell(
       onTap: () => _showContinueDialog(context, ref),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Triangle indicator (mimics map marker)
-            SizedBox(
-              width: 34,
-              height: 34,
-              child: CustomPaint(
-                painter: _TrianglePainter(
-                  color: AppColors.primary,
-                  borderColor: Colors.white,
+      child: Container(
+        color: isFollowed
+            ? AppColors.primary.withValues(alpha: 0.05)
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Directional triangle only — no white circle wrapper
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: CustomPaint(
+                  painter: _TrianglePainter(
+                    color: isFollowed ? AppColors.error : AppColors.primary,
+                    borderColor: Colors.white,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            // Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        vehicle.plateNumber,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSurface,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          vehicle.plateNumber,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.onSurface,
+                          ),
                         ),
-                      ),
-                      if (speed != null) ...[
+                        if (speed != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(speed,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.onSurfaceVariant,
+                                )),
+                          ),
+                        ],
                         const SizedBox(width: 6),
+                        // ETA badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLow,
+                            color: eta <= 2
+                                ? AppColors.error.withValues(alpha: 0.1)
+                                : AppColors.primary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(5),
                           ),
-                          child: Text(speed,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: AppColors.onSurfaceVariant,
-                              )),
+                          child: Text(
+                            '~$eta min',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: eta <= 2
+                                  ? AppColors.error
+                                  : AppColors.primary,
+                            ),
+                          ),
                         ),
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  // Current → next stop
-                  Row(
-                    children: [
-                      const Icon(LucideIcons.mapPin,
-                          size: 11, color: AppColors.onSurfaceVariant),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text(
-                          _stopText(vehicle),
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.onSurfaceVariant),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(LucideIcons.mapPin,
+                            size: 11, color: AppColors.onSurfaceVariant),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            _stopText(vehicle),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.onSurfaceVariant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Passengers
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(LucideIcons.users,
-                        size: 11, color: AppColors.onSurfaceVariant),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${vehicle.passengersOnBoard}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.onSurface,
-                      ),
+                      ],
                     ),
                   ],
                 ),
-                const Text('on board',
-                    style: TextStyle(
-                        fontSize: 9, color: AppColors.onSurfaceVariant)),
-              ],
-            ),
-          ],
+              ),
+              // Passengers + follow indicator
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(LucideIcons.users,
+                          size: 11, color: AppColors.onSurfaceVariant),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${vehicle.passengersOnBoard}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Text('on board',
+                      style: TextStyle(
+                          fontSize: 9, color: AppColors.onSurfaceVariant)),
+                  if (isFollowed)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text('tracking',
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: AppColors.error,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1747,7 +2019,7 @@ class _LiveVehicleRow extends ConsumerWidget {
 
   String _stopText(RouteVehicleSnap v) {
     if (v.currentStopName != null && v.nextStopName != null) {
-      return 'At ${v.currentStopName} → ${v.nextStopName}';
+      return 'At ${v.currentStopName} → next: ${v.nextStopName}';
     }
     if (v.currentStopName != null) return 'At ${v.currentStopName}';
     if (v.nextStopName != null) return 'Heading to ${v.nextStopName}';

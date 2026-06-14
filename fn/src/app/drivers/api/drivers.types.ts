@@ -19,4 +19,4 @@ export interface CreateDriverPayload {
   licenseCategory: string;
 }
 
-export interface UpdateDriverPayload extends Partial<CreateDriverPayload> {}
+export type UpdateDriverPayload = Partial<CreateDriverPayload>;

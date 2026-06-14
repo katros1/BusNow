@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-004 splitStatements:true
 ALTER TABLE busnow_route RENAME COLUMN route_name TO rt_name;
 ALTER TABLE busnow_route RENAME COLUMN route_geo TO rt_geo;
 ALTER TABLE busnow_route RENAME COLUMN start_bus_park_id TO rt_start_bus_park_id;

@@ -24,13 +24,15 @@ class RouteSuggestionModel {
   final List<LatLng> routeCoordinates;
   final RoutePointModel boardingPoint;
   final RoutePointModel destinationPoint;
-  final double walkToBoardingKm;
-  final double walkToDestinationKm;
+  final double? walkToBoardingKm;           // null when GPS was unavailable
+  final double distanceToDestinationKm;
   final double totalWalkingKm;
   final int walkToBoardingMinutes;
-  final int walkToDestinationMinutes;
+  final int distanceToDestinationMinutes;
   final int totalWalkingMinutes;
   final String tier;
+  final int fareAmount;
+  final int requiredCardBalance;
 
   const RouteSuggestionModel({
     required this.routeId,
@@ -38,13 +40,15 @@ class RouteSuggestionModel {
     required this.routeCoordinates,
     required this.boardingPoint,
     required this.destinationPoint,
-    required this.walkToBoardingKm,
-    required this.walkToDestinationKm,
+    this.walkToBoardingKm,
+    required this.distanceToDestinationKm,
     required this.totalWalkingKm,
     required this.walkToBoardingMinutes,
-    required this.walkToDestinationMinutes,
+    required this.distanceToDestinationMinutes,
     required this.totalWalkingMinutes,
     required this.tier,
+    this.fareAmount = 0,
+    this.requiredCardBalance = 0,
   });
 
   factory RouteSuggestionModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +59,8 @@ class RouteSuggestionModel {
       return LatLng((pair[1] as num).toDouble(), (pair[0] as num).toDouble());
     }).toList();
 
+    final rawBoarding = json['walkToBoardingKm'];
+
     return RouteSuggestionModel(
       routeId: json['routeId'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
@@ -63,16 +69,17 @@ class RouteSuggestionModel {
           json['boardingPoint'] as Map<String, dynamic>),
       destinationPoint: RoutePointModel.fromJson(
           json['destinationPoint'] as Map<String, dynamic>),
-      walkToBoardingKm:
-          (json['walkToBoardingKm'] as num? ?? 0).toDouble(),
-      walkToDestinationKm:
-          (json['walkToDestinationKm'] as num? ?? 0).toDouble(),
+      walkToBoardingKm: rawBoarding != null ? (rawBoarding as num).toDouble() : null,
+      distanceToDestinationKm:
+          (json['distanceToDestinationKm'] as num? ?? 0).toDouble(),
       totalWalkingKm: (json['totalWalkingKm'] as num? ?? 0).toDouble(),
       walkToBoardingMinutes: json['walkToBoardingMinutes'] as int? ?? 0,
-      walkToDestinationMinutes:
-          json['walkToDestinationMinutes'] as int? ?? 0,
+      distanceToDestinationMinutes:
+          json['distanceToDestinationMinutes'] as int? ?? 0,
       totalWalkingMinutes: json['totalWalkingMinutes'] as int? ?? 0,
       tier: json['tier'] as String? ?? '',
+      fareAmount: json['fareAmount'] as int? ?? 0,
+      requiredCardBalance: json['requiredCardBalance'] as int? ?? 0,
     );
   }
 
@@ -83,12 +90,14 @@ class RouteSuggestionModel {
         boardingPoint: boardingPoint.toEntity(),
         destinationPoint: destinationPoint.toEntity(),
         walkToBoardingKm: walkToBoardingKm,
-        walkToDestinationKm: walkToDestinationKm,
+        distanceToDestinationKm: distanceToDestinationKm,
         totalWalkingKm: totalWalkingKm,
         walkToBoardingMinutes: walkToBoardingMinutes,
-        walkToDestinationMinutes: walkToDestinationMinutes,
+        distanceToDestinationMinutes: distanceToDestinationMinutes,
         totalWalkingMinutes: totalWalkingMinutes,
         tier: tier,
+        fareAmount: fareAmount,
+        requiredCardBalance: requiredCardBalance,
       );
 }
 

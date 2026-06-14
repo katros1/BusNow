@@ -58,38 +58,64 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
   const map = useMap();
   const drawnItemsRef = useRef<L.FeatureGroup>(new L.FeatureGroup());
   const shapeMapRef = useRef<Map<L.Layer, DrawnShape>>(new Map());
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
 
   useEffect(() => {
     const drawnItems = drawnItemsRef.current;
     const shapeMap = shapeMapRef.current;
-    
+
     drawnItems.clearLayers();
     shapeMap.clear();
 
     if (initialCoordinates && initialCoordinates.length > 0) {
-      const shape = initialShapeType === "polygon" 
-        ? L.polygon(initialCoordinates, {
-            color: "#005BBF",
-            weight: 2,
-            opacity: 1,
-            fillColor: "#1a73e8",
-            fillOpacity: 0.12,
-          })
-        : L.polyline(initialCoordinates, {
-            color: "#1d4ed8",
-            weight: 4,
-            opacity: 1,
-          });
+      const shape =
+        initialShapeType === "polygon"
+          ? L.polygon(initialCoordinates, {
+              color: "#06b6d4",
+              weight: 3,
+              opacity: 1,
+              fillColor: "#06b6d4",
+              fillOpacity: 0.22,
+              dashArray: "8 5",
+            })
+          : L.polyline(initialCoordinates, {
+              color: "#818cf8",
+              weight: 5,
+              opacity: 0.9,
+              dashArray: "14 7",
+            });
       drawnItems.addLayer(shape);
       shapeMap.set(shape, layerToShape(uid(), shape)!);
-      
-      requestAnimationFrame(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        try { map.fitBounds(shape.getBounds(), { padding: [20, 20], maxZoom: 16 }); } catch (_e) { /* default to view */ }
-      });
     }
 
     map.addLayer(drawnItems);
+
+    // Notify parent about the pre-loaded shape so it's in state from the start
+    const emitCurrent = () => {
+      if (!onChangeRef.current) return;
+      const shapes: DrawnShape[] = [];
+      shapeMap.forEach((shape: DrawnShape) => shapes.push(shape));
+      onChangeRef.current(shapes);
+    };
+    emitCurrent();
+
+    // After the flex layout has settled, invalidate the map size and zoom to
+    // the initial shape so it's clearly visible in the viewport.
+    let fitTimer: ReturnType<typeof setTimeout> | undefined;
+    if (initialCoordinates && initialCoordinates.length > 0) {
+      fitTimer = setTimeout(() => {
+        try {
+          const bounds = L.polyline(initialCoordinates).getBounds();
+          if (bounds.isValid()) {
+            map.invalidateSize();
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17, animate: false });
+          }
+        } catch {
+          // fall back to default view
+        }
+      }, 250);
+    }
 
     const drawControl = new L.Control.Draw({
       position: "topright",
@@ -103,11 +129,11 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
           allowIntersection: false,
           showArea: true,
           shapeOptions: {
-            color: "#005BBF",
-            weight: 2,
+            color: "#06b6d4",
+            weight: 3,
             opacity: 1,
-            fillColor: "#1a73e8",
-            fillOpacity: 0.12,
+            fillColor: "#06b6d4",
+            fillOpacity: 0.25,
           },
           icon: new L.DivIcon({
             iconSize: new L.Point(8, 8),
@@ -117,8 +143,8 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
         // ── Polyline ─────────────────────────────────────────────
         polyline: {
           shapeOptions: {
-            color: "#1d4ed8",
-            weight: 4,
+            color: "#818cf8",
+            weight: 5,
             opacity: 1,
           },
           icon: new L.DivIcon({
@@ -138,10 +164,10 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
 
     /** Re-collect all shapes from the internal map and call onChange. */
     const emit = () => {
-      if (!onChange) return;
+      if (!onChangeRef.current) return;
       const shapes: DrawnShape[] = [];
       shapeMap.forEach((shape: DrawnShape) => shapes.push(shape));
-      onChange(shapes);
+      onChangeRef.current(shapes);
     };
 
     // ── CREATED ──────────────────────────────────────────────────
@@ -176,13 +202,14 @@ function DrawControl({ onChange, initialCoordinates, initialShapeType = "polygon
     });
 
     return () => {
+      clearTimeout(fitTimer);
       map.removeControl(drawControl);
       map.removeLayer(drawnItems);
       map.off(L.Draw.Event.CREATED);
       map.off(L.Draw.Event.EDITED);
       map.off(L.Draw.Event.DELETED);
     };
-  }, [map, onChange, initialCoordinates, initialShapeType]);
+  }, [map, initialCoordinates, initialShapeType]);
 
   return null;
 }

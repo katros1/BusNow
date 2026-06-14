@@ -52,6 +52,7 @@ public class StalenessChecker {
                 s.latitude(), s.longitude(), s.speedKmh(), s.headingDeg(),
                 s.gpsValid(), true,
                 s.currentStopName(), s.nextStopName(),
+                s.nextStopLat(), s.nextStopLon(),
                 s.distanceToNextStopM(), s.distanceToTerminalM(), s.progressPercent(),
                 s.lastPassedStopSeq(),
                 s.passengersOnBoard(), s.availableSeats(),

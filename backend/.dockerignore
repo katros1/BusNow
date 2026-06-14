@@ -1,0 +1,6 @@
+target/
+*.md
+.git/
+.gitignore
+.DS_Store
+mvnw.cmd

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record JourneyPlanRequestDto(
-        @NotNull @Size(min = 2, max = 2) List<@NotNull Double> currentLocation,
+        @Size(min = 2, max = 2) List<@NotNull Double> currentLocation,   // null = GPS unavailable
         @NotNull @Size(min = 2, max = 2) List<@NotNull Double> destinationLocation,
         @Positive Integer maxSuggestions
 ) {

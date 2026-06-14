@@ -14,11 +14,12 @@ import 'package:client/features/journey_planner/domain/repositories/journey_plan
 import 'package:client/features/journey_planner/domain/usecases/find_nearest_stop_usecase.dart';
 import 'package:client/features/journey_planner/domain/usecases/plan_journey_usecase.dart';
 import 'package:client/features/journey_planner/presentation/notifiers/journey_plan_notifier.dart';
+import 'package:client/utils/app_constants.dart';
 
 // ─── HTTP clients ────────────────────────────────────────────────────────────
 
 final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
-      baseUrl: 'http://192.168.1.87:8087/api/v1',
+      baseUrl: AppConstants.apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     )));
@@ -296,3 +297,123 @@ final nearestStopProvider =
   final result = await useCase.call([loc.$1, loc.$2]);
   return result.fold((_) => null, (stop) => stop);
 });
+
+// ─── AI Recommendations ───────────────────────────────────────────────────────
+
+const kAiDestinations = [
+  'Nyabugogo',
+  'Kigali Heights',
+  'Kacyiru',
+  'Kisimenti',
+  'Remera',
+  'Chez Lando',
+  'Kimironko',
+];
+
+class AiStopRecommendation {
+  final String stopName;
+  final double latitude;
+  final double longitude;
+  final double confidence;
+  final bool recommended;
+  final int waitTime;
+  final int busFrequency;
+  final int fare;
+  final double distanceKm;
+  final int walkingTime;
+
+  const AiStopRecommendation({
+    required this.stopName,
+    required this.latitude,
+    required this.longitude,
+    required this.confidence,
+    required this.recommended,
+    required this.waitTime,
+    required this.busFrequency,
+    required this.fare,
+    required this.distanceKm,
+    required this.walkingTime,
+  });
+
+  factory AiStopRecommendation.fromJson(Map<String, dynamic> j) =>
+      AiStopRecommendation(
+        stopName: j['stop_name'] as String? ?? '',
+        latitude: (j['latitude'] as num?)?.toDouble() ?? 0,
+        longitude: (j['longitude'] as num?)?.toDouble() ?? 0,
+        confidence: (j['confidence'] as num?)?.toDouble() ?? 0,
+        recommended: j['recommended'] as bool? ?? false,
+        waitTime: j['wait_time'] as int? ?? 0,
+        busFrequency: j['bus_frequency'] as int? ?? 0,
+        fare: j['fare'] as int? ?? 0,
+        distanceKm: (j['distance_km'] as num?)?.toDouble() ?? 0,
+        walkingTime: j['walking_time'] as int? ?? 0,
+      );
+}
+
+class AiRecommendationResult {
+  final bool success;
+  final String destination;
+  final String? timeContext;
+  final List<AiStopRecommendation> recommendations;
+  final AiStopRecommendation? bestStop;
+  final String? error;
+
+  const AiRecommendationResult({
+    required this.success,
+    required this.destination,
+    this.timeContext,
+    required this.recommendations,
+    this.bestStop,
+    this.error,
+  });
+
+  factory AiRecommendationResult.fromJson(Map<String, dynamic> j) =>
+      AiRecommendationResult(
+        success: j['success'] as bool? ?? false,
+        destination: j['destination'] as String? ?? '',
+        timeContext: j['time_context'] as String?,
+        recommendations: (j['recommendations'] as List<dynamic>?)
+                ?.map((e) => AiStopRecommendation.fromJson(
+                    e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        bestStop: j['best_stop'] != null
+            ? AiStopRecommendation.fromJson(
+                j['best_stop'] as Map<String, dynamic>)
+            : null,
+        error: j['error'] as String?,
+      );
+}
+
+class AiRecommendationNotifier
+    extends AsyncNotifier<AiRecommendationResult?> {
+  @override
+  Future<AiRecommendationResult?> build() async => null;
+
+  Future<void> fetch({
+    required String destination,
+    required double lat,
+    required double lon,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.post(
+        '/recommendations',
+        data: {
+          'destination': destination,
+          'userLatitude': lat,
+          'userLongitude': lon,
+        },
+      );
+      state = AsyncValue.data(AiRecommendationResult.fromJson(
+          response.data as Map<String, dynamic>));
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final aiRecommendationNotifierProvider =
+    AsyncNotifierProvider<AiRecommendationNotifier, AiRecommendationResult?>(
+        AiRecommendationNotifier.new);

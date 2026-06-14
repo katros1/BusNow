@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, ChevronLeft, Map as MapIcon } from "lucide-react";
+import { MapPin, ChevronLeft, Bus } from "lucide-react";
 import { parksApi } from "../api/parks.api";
 import { parkKeys } from "../api/parks.keys";
 import { useUpdatePark } from "../api/parks.mutations";
@@ -10,7 +10,7 @@ import type { DrawnShape } from "@/components/map/DrawControl";
 
 import type { Park } from "../api/parks.types";
 
-type CoordinateObj = { lat: number; lng: number }; 
+type CoordinateObj = { lat: number; lng: number };
 
 export default function EditPark() {
   const { parkId } = useParams({ strict: false }) as { parkId: string };
@@ -65,82 +65,121 @@ function EditParkForm({ park, parkId }: { park: Park, parkId: string }) {
     );
   };
 
+  const vertexCount = editShapes.length > 0
+    ? editShapes.reduce((acc, curr) => acc + curr.vertexCount, 0)
+    : park.coordinates?.length ?? 0;
+
+  const isComplete = !!editName.trim();
+
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-[1400px] mx-auto w-full">
-      {/* Header Area */}
-      <div className="px-6 py-6 flex items-center justify-between border-b border-border bg-white sticky top-0 z-10 shrink-0">
-        <div className="flex items-center gap-4">
+      {/* Header */}
+      <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-white sticky top-0 z-10 shrink-0">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate({ to: "/parks" })}
-            className="w-10 h-10 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary transition-all"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-surface-container-low hover:text-primary transition-all"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-[24px] font-bold tracking-tight text-foreground flex items-center gap-2">
-              <MapIcon className="h-6 w-6 text-primary" />
-              Edit Service Zone
+            <h1 className="text-[20px] font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Bus className="h-5 w-5 text-primary" />
+              Edit Bus Park
             </h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              Modify the physical boundaries and formal identity of this park.
+            <p className="text-[12px] text-muted-foreground mt-0.5">
+              Update the name and boundary polygon for this terminal.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate({ to: "/parks" })}
-            className="px-5 h-11 rounded-lg font-bold text-muted-foreground hover:bg-surface-container-low transition-colors"
+            className="px-4 h-9 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-surface-container-low transition-colors"
           >
             Discard
           </button>
           <button
             onClick={handleSave}
-            disabled={updateParkMut.isPending}
-            className="px-6 h-11 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90 shadow-sm transition-all disabled:opacity-50"
+            disabled={updateParkMut.isPending || !isComplete}
+            className="px-5 h-9 bg-primary text-primary-foreground text-sm font-bold rounded-lg hover:bg-primary/90 shadow-sm transition-all disabled:opacity-50"
           >
-            {updateParkMut.isPending ? "Saving..." : "Save Route Configuration"}
+            {updateParkMut.isPending ? "Saving..." : "Save Park"}
           </button>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        {/* Left Pane - Inputs */}
-        <div className="w-full lg:w-[380px] shrink-0 border-r border-border p-6 bg-white flex flex-col gap-8 overflow-y-auto z-10">
-          <div>
-            <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-              Facility Identity
+        {/* Left Panel */}
+        <div className="w-full lg:w-[340px] shrink-0 border-r border-border bg-white flex flex-col overflow-y-auto z-10">
+          {/* Park identity section */}
+          <div className="p-5 border-b border-border">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+              Terminal Name
             </label>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full h-11 px-4 rounded-lg border border-border bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-[14px]"
+              className="w-full h-10 px-3 rounded-lg border border-border bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-[14px]"
               placeholder="e.g. Nyabugogo Main Terminal"
             />
           </div>
 
-          <div>
-            <label className="text-[12px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
-              Boundary Data
+          {/* Boundary info section */}
+          <div className="p-5 border-b border-border">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-3">
+              Boundary Polygon
             </label>
-            <div className="p-5 rounded-lg bg-primary/5 border border-primary/20">
+
+            <div className="rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/15 p-4">
               <div className="flex items-center gap-3 mb-3">
-                <MapPin className="h-5 w-5 text-primary" />
-                <span className="font-bold text-[14px] text-primary">
-                  {editShapes.length > 0
-                    ? editShapes.reduce((acc, curr) => acc + curr.vertexCount, 0)
-                    : park.coordinates?.length || 0}{" "}
-                  Vertices plotted
-                </span>
+                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <MapPin className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-primary">{vertexCount} vertices</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {editShapes.length > 0 ? "New shape drawn" : "Current boundary"}
+                  </p>
+                </div>
               </div>
-              <p className="text-[13px] text-muted-foreground font-medium leading-relaxed">
-                Draw a new zone onto the map, or hover your cursor over the existing polygon and click the 'Edit Layers' icon to reposition vertices manually.
+              <p className="text-[12px] text-muted-foreground leading-relaxed">
+                The existing boundary is shown on the map. To change it, use the polygon tool to draw a new zone, or click the edit icon to reposition vertices.
               </p>
             </div>
           </div>
+
+          {/* Instructions */}
+          <div className="p-5 flex-1">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-3">
+              How to Edit
+            </label>
+            <ol className="space-y-3">
+              {[
+                { step: "1", text: "The existing park polygon is displayed on the map." },
+                { step: "2", text: "Hover over the polygon and click the Edit Layers icon to reposition vertices." },
+                { step: "3", text: "Or draw a completely new polygon using the toolbar." },
+                { step: "4", text: "Click Save Park when you're done." },
+              ].map(({ step, text }) => (
+                <li key={step} className="flex gap-3 items-start">
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {step}
+                  </span>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">{text}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {updateParkMut.isError && (
+            <div className="mx-5 mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-700 font-medium">
+              Failed to save. Please try again.
+            </div>
+          )}
         </div>
 
-        {/* Right Pane - Map */}
+        {/* Map */}
         <div className="flex-1 relative z-0 bg-[#e5e3df] min-h-[400px]">
           <MapView
             onShapesChange={setEditShapes}

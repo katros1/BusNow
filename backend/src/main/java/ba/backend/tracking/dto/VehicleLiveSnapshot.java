@@ -23,10 +23,12 @@ public record VehicleLiveSnapshot(
         boolean gpsStale,
         String  currentStopName,
         String  nextStopName,
-        Double  distanceToNextStopM,   // metres along route to next stop centroid
-        Double  distanceToTerminalM,   // metres along route to end terminal centroid
+        Double  nextStopLat,           // centroid latitude of the next stop (for client-side line)
+        Double  nextStopLon,           // centroid longitude of the next stop
+        Double  distanceToNextStopM,   // straight-line haversine metres to next stop centroid
+        Double  distanceToTerminalM,   // metres along route to end terminal
         Double  progressPercent,       // 0–100, how far along the route the bus is
-        int     lastPassedStopSeq,    // sequence of last stop the bus visited (0 = not started)
+        int     lastPassedStopSeq,     // sequence of last stop the bus visited (0 = not started)
         int     passengersOnBoard,
         Integer availableSeats,
         UUID    tripId,

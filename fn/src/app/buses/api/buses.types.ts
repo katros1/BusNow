@@ -27,4 +27,4 @@ export interface CreateBusPayload {
   routeCodeId: string;
 }
 
-export interface UpdateBusPayload extends Partial<CreateBusPayload> {}
+export type UpdateBusPayload = Partial<CreateBusPayload>;

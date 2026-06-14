@@ -1,3 +1,5 @@
+--liquibase formatted sql
+-- changeset author:ba-backend-005 splitStatements:true
 CREATE TABLE IF NOT EXISTS busnow_driver (
     id uuid PRIMARY KEY,
     dr_first_name varchar(80) NOT NULL,

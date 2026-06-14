@@ -12,7 +12,7 @@
         <module>infrastructure</module>
         <module>backend</module>
         <module>fn</module>
-        <module>client</module>
+<!--        <module>client</module>-->
     </modules>
 
     <properties>

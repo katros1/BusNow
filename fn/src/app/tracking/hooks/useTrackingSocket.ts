@@ -40,6 +40,7 @@ export function useTrackingSocket(plates: string[]): TrackingSocketState {
   const mountedRef   = useRef(true);
   const platesRef    = useRef<string[]>(plates);
   const tokenRef     = useRef(token);
+  const connectRef   = useRef<(() => void) | null>(null);
 
   useEffect(() => { platesRef.current = plates; });
   useEffect(() => { tokenRef.current = token; });
@@ -84,11 +85,13 @@ export function useTrackingSocket(plates: string[]): TrackingSocketState {
       if (!mountedRef.current) return;
       const delay = Math.min(1_000 * 2 ** retryCount.current, MAX_RETRY_DELAY_MS);
       retryCount.current = Math.min(retryCount.current + 1, 10);
-      retryTimer.current = setTimeout(connect, delay);
+      retryTimer.current = setTimeout(() => connectRef.current?.(), delay);
     };
 
     ws.onerror = () => ws.close();
-  }, []); // stable — reads latest values via refs
+  }, [doSubscribe, push]); // doSubscribe and push are stable ([] deps)
+
+  useEffect(() => { connectRef.current = connect; }, [connect]);
 
   // Connect once on mount; reconnect when token changes (new URL)
   useEffect(() => {

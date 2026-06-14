@@ -32,32 +32,32 @@ public class JourneyPlannerController {
     /**
      * GET /api/v1/journey-planner/plan
      *
-     * Finds the best public transport routes between two coordinates.
-     * Internally uses PostGIS to locate boarding/alighting stops and OSRM to
-     * measure accurate walking distances (straight-line is unreliable in Rwanda's hilly terrain).
+     * Finds the best public transport routes from an origin to a destination.
+     *
+     * fromLat / fromLng are OPTIONAL. When omitted (GPS unavailable), the planner
+     * still finds the best route to the destination but returns walkToBoardingKm=null
+     * since the real walking distance to the boarding stop cannot be measured.
      *
      * Parameters — all coordinates are standard WGS-84:
-     *   fromLat  – latitude  of the user's current position  (e.g. -1.9537)
-     *   fromLng  – longitude of the user's current position  (e.g.  30.1245)
-     *   toLat    – latitude  of the destination              (e.g. -1.9888)
-     *   toLng    – longitude of the destination              (e.g.  30.0985)
+     *   fromLat  – latitude  of the user's current GPS position (optional)
+     *   fromLng  – longitude of the user's current GPS position (optional)
+     *   toLat    – latitude  of the destination (required)
+     *   toLng    – longitude of the destination (required)
      *   maxSuggestions – optional, default 5, capped at 5
-     *
-     * Example:
-     *   /plan?fromLat=-1.953676525114259&fromLng=30.124516587215403
-     *        &toLat=-1.988764604452511&toLng=30.098511286711155
      */
     @GetMapping("/plan")
     public JourneyPlanResponseDto plan(
-            @RequestParam @DecimalMin("-90.0")  @DecimalMax("90.0")  double fromLat,
-            @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double fromLng,
+            @RequestParam(required = false) @DecimalMin("-90.0")  @DecimalMax("90.0")  Double fromLat,
+            @RequestParam(required = false) @DecimalMin("-180.0") @DecimalMax("180.0") Double fromLng,
             @RequestParam @DecimalMin("-90.0")  @DecimalMax("90.0")  double toLat,
             @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double toLng,
             @RequestParam(required = false) @Positive Integer maxSuggestions
     ) {
-        // Internal convention: [longitude, latitude] — matches PostGIS ST_MakePoint(lng, lat)
+        List<Double> origin = (fromLat != null && fromLng != null)
+                ? List.of(fromLng, fromLat)
+                : null;
         return journeyPlannerService.plan(new JourneyPlanRequestDto(
-                List.of(fromLng, fromLat),
+                origin,
                 List.of(toLng, toLat),
                 maxSuggestions
         ));

@@ -486,10 +486,10 @@ class _RouteOptionCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Walk to destination
+                  // Distance from alighting stop to destination
                   _WalkSegment(
-                    km: suggestion.walkToDestinationKm,
-                    minutes: suggestion.walkToDestinationMinutes,
+                    km: suggestion.distanceToDestinationKm,
+                    minutes: suggestion.distanceToDestinationMinutes,
                     color: _kAlightOrange,
                     alignRight: true,
                   ),
@@ -608,7 +608,7 @@ class _PointDot extends StatelessWidget {
 }
 
 class _WalkSegment extends StatelessWidget {
-  final double km;
+  final double? km;
   final int minutes;
   final Color color;
   final bool alignRight;
@@ -628,7 +628,7 @@ class _WalkSegment extends StatelessWidget {
         Icon(LucideIcons.footprints, size: 14, color: color),
         const SizedBox(height: 2),
         Text(
-          '${km.toStringAsFixed(2)} km',
+          km != null ? '${km!.toStringAsFixed(2)} km' : '— km',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -636,7 +636,7 @@ class _WalkSegment extends StatelessWidget {
           ),
         ),
         Text(
-          '$minutes min',
+          km != null ? '$minutes min' : 'no GPS',
           style: const TextStyle(
               fontSize: 10, color: AppColors.onSurfaceVariant),
         ),

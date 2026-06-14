@@ -38,7 +38,10 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers("/ws/**");
+        return (web) -> web.ignoring().requestMatchers(
+            "/ws/**",
+            "/api/v1/simulator/**"
+        );
     }
 
     @Bean
@@ -48,12 +51,14 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                    "/error",
                     "/api/v1/simulator/**",
                     "/api/v1/journey-planner/**",
                     "/api/v1/routes/*/stops",
                     "/actuator/**",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
+                    "/api/v1/recommendations/**",
                     "/ws/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/**").authenticated()

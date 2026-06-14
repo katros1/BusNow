@@ -12,11 +12,11 @@ public record JourneyPlanResponseDto(
             List<List<Double>> routeCoordinates,
             JourneyRoutePointDto boardingPoint,
             JourneyRoutePointDto destinationPoint,
-            double walkToBoardingKm,
-            double walkToDestinationKm,
+            Double walkToBoardingKm,           // null when user GPS position is unavailable
+            double distanceToDestinationKm,    // walk from alighting stop → destination (user rides bus for the main leg)
             double totalWalkingKm,
             int walkToBoardingMinutes,
-            int walkToDestinationMinutes,
+            int distanceToDestinationMinutes,
             int totalWalkingMinutes,
             String tier,
             double rideDistanceKm,

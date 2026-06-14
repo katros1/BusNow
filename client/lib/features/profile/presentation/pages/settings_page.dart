@@ -43,12 +43,6 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   _SettingsGroup(children: [
                     _SwitchTile(
-                      icon: LucideIcons.bell,
-                      title: 'Trip Alerts',
-                      subtitle: 'Notify when near boarding stop',
-                      value: true,
-                    ),
-                    _SwitchTile(
                       icon: LucideIcons.navigation2,
                       title: 'GPS Location',
                       subtitle: 'Auto-detect your position',
@@ -61,24 +55,6 @@ class SettingsPage extends StatelessWidget {
                       value: false,
                     ),
                   ]).animate().fadeIn(delay: 100.ms),
-
-                  const SizedBox(height: 28),
-
-                  // ── Map ───────────────────────────────────────────────────
-                  _SectionLabel('Map'),
-                  const SizedBox(height: 10),
-                  _SettingsGroup(children: [
-                    const _NavTile(
-                      icon: LucideIcons.layers,
-                      title: 'Map Style',
-                      subtitle: 'OpenStreetMap (standard)',
-                    ),
-                    const _NavTile(
-                      icon: LucideIcons.zoomIn,
-                      title: 'Default Zoom',
-                      subtitle: 'City level (zoom 13)',
-                    ),
-                  ]).animate().fadeIn(delay: 180.ms),
 
                   const SizedBox(height: 28),
 
@@ -120,7 +96,7 @@ class SettingsPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         const Text(
-                          'BusNow',
+                          'BusNow Rwanda',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -182,7 +158,7 @@ class _AppCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'BusNow',
+                  'BusNow Rwanda',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

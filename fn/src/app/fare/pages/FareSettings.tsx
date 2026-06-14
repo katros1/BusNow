@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fareApi } from "../api/fare.api";
 import { fareKeys } from "../api/fare.keys";
@@ -12,16 +12,13 @@ export default function FareSettings() {
   });
 
   const updateMut = useUpdateFareSettings();
-  const [basePrice, setBasePrice] = useState("");
-
-  useEffect(() => {
-    if (settings) setBasePrice(String(settings.basePriceFrw));
-  }, [settings]);
+  const [localPrice, setLocalPrice] = useState<string | null>(null);
+  const basePrice = localPrice ?? (settings ? String(settings.basePriceFrw) : "");
 
   const handleSave = () => {
     const value = parseFloat(basePrice);
     if (isNaN(value) || value < 1) return;
-    updateMut.mutate({ basePriceFrw: value });
+    updateMut.mutate({ basePriceFrw: value }, { onSuccess: () => setLocalPrice(null) });
   };
 
   return (
@@ -67,7 +64,7 @@ export default function FareSettings() {
                   min="1"
                   step="50"
                   value={basePrice}
-                  onChange={(e) => setBasePrice(e.target.value)}
+                  onChange={(e) => setLocalPrice(e.target.value)}
                   className="w-full h-10 pl-12 pr-3 text-[14px] font-semibold border border-border rounded-lg focus:border-primary outline-none transition-all"
                   placeholder="500"
                 />

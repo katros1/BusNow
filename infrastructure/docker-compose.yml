@@ -25,12 +25,13 @@ services:
     image: redis:7-alpine
     container_name: busnow_redis
     restart: always
+    command: redis-server --requirepass busnow_redis_pass
     ports:
       - "6378:6379"
     volumes:
       - busnow_redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "busnow_redis_pass", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

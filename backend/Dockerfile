@@ -37,7 +37,10 @@ ENV SPRING_DATA_REDIS_PORT=6379
 ENV SPRING_DATA_REDIS_PASSWORD=busnow_redis_pass
 
 # Keycloak
-ENV SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/busnow-client
+ENV SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=https://busnow-keycloak-3a1c64-16-16-22-206.sslip.io/realms/busnow-client
+
+# CORS (comma-separated list of allowed frontend origins)
+ENV CORS_ALLOWED_ORIGINS=http://localhost:5173
 
 # ML service
 ENV ML_SERVICE_BASE_URL=http://ml-service:8000

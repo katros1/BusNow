@@ -49,5 +49,6 @@ ENV ML_SERVICE_BASE_URL=http://ml-service:8000
 ENV JAVA_TOOL_OPTIONS="-Xms256m -Xmx512m -XX:+UseG1GC"
 
 EXPOSE 8087
+EXPOSE 9000
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

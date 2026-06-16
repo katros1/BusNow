@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import type { VehicleLiveSnapshot } from "../api/tracking.types";
 
 function buildWsUrl(token: string | undefined): string {
-  const base = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8087/api/v1")
+  const base = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8087/api/v1")
     .replace(/\/api\/v1\/?$/, "")
     .replace(/^http/, "ws");
   return token ? `${base}/ws/tracking?token=${encodeURIComponent(token)}` : `${base}/ws/tracking`;
@@ -40,7 +40,6 @@ export function useTrackingSocket(plates: string[]): TrackingSocketState {
   const mountedRef   = useRef(true);
   const platesRef    = useRef<string[]>(plates);
   const tokenRef     = useRef(token);
-  const connectRef   = useRef<(() => void) | null>(null);
 
   useEffect(() => { platesRef.current = plates; });
   useEffect(() => { tokenRef.current = token; });
@@ -85,13 +84,11 @@ export function useTrackingSocket(plates: string[]): TrackingSocketState {
       if (!mountedRef.current) return;
       const delay = Math.min(1_000 * 2 ** retryCount.current, MAX_RETRY_DELAY_MS);
       retryCount.current = Math.min(retryCount.current + 1, 10);
-      retryTimer.current = setTimeout(() => connectRef.current?.(), delay);
+      retryTimer.current = setTimeout(connect, delay);
     };
 
     ws.onerror = () => ws.close();
-  }, [doSubscribe, push]); // doSubscribe and push are stable ([] deps)
-
-  useEffect(() => { connectRef.current = connect; }, [connect]);
+  }, []); // stable — reads latest values via refs
 
   // Connect once on mount; reconnect when token changes (new URL)
   useEffect(() => {

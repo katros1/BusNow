@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -43,13 +42,13 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   _SettingsGroup(children: [
                     _SwitchTile(
-                      icon: LucideIcons.navigation2,
+                      icon: Icons.navigation,
                       title: 'GPS Location',
                       subtitle: 'Auto-detect your position',
                       value: true,
                     ),
                     _SwitchTile(
-                      icon: LucideIcons.moon,
+                      icon: Icons.dark_mode_outlined,
                       title: 'Dark Appearance',
                       subtitle: 'Match system theme',
                       value: false,
@@ -63,17 +62,17 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   _SettingsGroup(children: [
                     const _NavTile(
-                      icon: LucideIcons.info,
+                      icon: Icons.info_outline,
                       title: 'About BusNow',
                       subtitle: 'Rwanda Intelligent Transit System',
                     ),
                     const _NavTile(
-                      icon: LucideIcons.shield,
+                      icon: Icons.shield_outlined,
                       title: 'Privacy Policy',
                       subtitle: 'How we use your data',
                     ),
                     const _NavTile(
-                      icon: LucideIcons.fileText,
+                      icon: Icons.description_outlined,
                       title: 'Terms of Service',
                     ),
                   ]).animate().fadeIn(delay: 260.ms),
@@ -91,7 +90,7 @@ class SettingsPage extends StatelessWidget {
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(LucideIcons.bus,
+                          child: const Icon(Icons.directions_bus,
                               color: AppColors.primary, size: 24),
                         ),
                         const SizedBox(height: 10),
@@ -149,7 +148,7 @@ class _AppCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(LucideIcons.bus,
+            child: const Icon(Icons.directions_bus,
                 color: Colors.white, size: 28),
           ),
           const SizedBox(width: 16),
@@ -370,7 +369,7 @@ class _NavTile extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 12, color: AppColors.onSurfaceVariant))
           : null,
-      trailing: const Icon(LucideIcons.chevronRight,
+      trailing: const Icon(Icons.keyboard_arrow_right,
           size: 15, color: AppColors.outlineVariant),
     );
   }

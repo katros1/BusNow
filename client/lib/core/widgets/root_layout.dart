@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 
 
@@ -28,9 +27,9 @@ class _BottomBar extends StatelessWidget {
   const _BottomBar();
 
   static const _items = [
-    (path: '/', icon: LucideIcons.home, label: 'Home'),
-    (path: '/saved', icon: LucideIcons.bookmark, label: 'Saved'),
-    (path: '/settings', icon: LucideIcons.settings, label: 'Settings'),
+    (path: '/', icon: Icons.home_outlined, label: 'Home'),
+    (path: '/saved', icon: Icons.bookmark_outline, label: 'Saved'),
+    (path: '/settings', icon: Icons.settings_outlined, label: 'Settings'),
   ];
 
   @override

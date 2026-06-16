@@ -201,7 +201,7 @@ export default function VehicleTracking() {
     enabled:  !!routeId,
     staleTime: 120_000,
     // Keep previous route visible while a new routeId loads (direction toggle)
-    keepPreviousData: true,
+    placeholderData: (prev: typeof routeDetail) => prev,
   });
 
   // Auto-collapse header when user switches to map/satellite to give map max space

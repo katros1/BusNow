@@ -7,7 +7,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:client/core/services/notification_service.dart';
 import 'package:client/core/theme/app_colors.dart';
@@ -178,7 +177,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
               duration: const Duration(seconds: 5),
               content: Row(
                 children: [
-                  const Icon(LucideIcons.bus, color: Colors.white, size: 18),
+                  const Icon(Icons.directions_bus, color: Colors.white, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -204,7 +203,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.alertCircle,
+              const Icon(Icons.error_outline,
                   size: 40, color: AppColors.onSurfaceVariant),
               const SizedBox(height: 12),
               const Text('No route selected'),
@@ -283,7 +282,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
               child: Row(
                 children: [
                   _MapButton(
-                    icon: LucideIcons.arrowLeft,
+                    icon: Icons.arrow_back,
                     onTap: () => context.pop(),
                   ),
                   const SizedBox(width: 8),
@@ -315,7 +314,7 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
                   ),
                   const SizedBox(width: 8),
                   _MapButton(
-                    icon: LucideIcons.layoutList,
+                    icon: Icons.view_list,
                     onTap: () =>
                         _scaffoldKey.currentState?.openEndDrawer(),
                   ),
@@ -333,8 +332,8 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
                 // Satellite / OSM toggle
                 _MapButton(
                   icon: mapLayer == MapLayer.osm
-                      ? LucideIcons.satellite
-                      : LucideIcons.map,
+                      ? Icons.satellite_alt
+                      : Icons.map_outlined,
                   onTap: () =>
                       ref.read(_mapLayerProvider.notifier).toggle(),
                 ),
@@ -343,8 +342,8 @@ class _RouteDetailsPageState extends ConsumerState<RouteDetailsPage> {
                 if (liveVehicles.isNotEmpty)
                   _MapButton(
                     icon: followPlate != null
-                        ? LucideIcons.crosshair
-                        : LucideIcons.crosshair,
+                        ? Icons.my_location
+                        : Icons.my_location,
                     active: followPlate != null,
                     onTap: () {
                       if (followPlate != null) {
@@ -485,11 +484,11 @@ class _RouteMap extends StatelessWidget {
         MarkerLayer(
           markers: [
             if (originLatLng != null)
-              _pinMarker(originLatLng!, LucideIcons.navigation2, _kWalkGreen, 38),
-            _pinMarker(boarding, LucideIcons.logIn, _kWalkGreen, 46, outlined: true),
-            _pinMarker(alighting, LucideIcons.logOut, _kAlightOrange, 46, outlined: true),
+              _pinMarker(originLatLng!, Icons.navigation, _kWalkGreen, 38),
+            _pinMarker(boarding, Icons.login, _kWalkGreen, 46, outlined: true),
+            _pinMarker(alighting, Icons.logout, _kAlightOrange, 46, outlined: true),
             if (destLatLng != null)
-              _pinMarker(destLatLng!, LucideIcons.mapPin, AppColors.error, 38),
+              _pinMarker(destLatLng!, Icons.location_on_outlined, AppColors.error, 38),
           ],
         ),
 
@@ -734,7 +733,7 @@ class _DetailSheet extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: onViewSteps,
-                    icon: const Icon(LucideIcons.layoutList, size: 16),
+                    icon: const Icon(Icons.view_list, size: 16),
                     label: const Text('View Full Journey Steps'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
@@ -773,28 +772,28 @@ class _StatsRow extends StatelessWidget {
       child: Row(
         children: [
           _Stat(
-            icon: LucideIcons.footprints,
+            icon: Icons.directions_walk,
             value: '${suggestion.totalWalkingKm.toStringAsFixed(2)} km',
             label: 'Total walk',
             color: AppColors.primary,
           ),
           _Divider(),
           _Stat(
-            icon: LucideIcons.timer,
+            icon: Icons.timer_outlined,
             value: '${suggestion.totalWalkingMinutes} min',
             label: 'Walk time',
             color: AppColors.primary,
           ),
           _Divider(),
           _Stat(
-            icon: LucideIcons.bus,
+            icon: Icons.directions_bus,
             value: suggestion.boardingPoint.isBusPark ? 'Park' : 'Stop',
             label: 'Board via',
             color: _kWalkGreen,
           ),
           _Divider(),
           _Stat(
-            icon: LucideIcons.banknote,
+            icon: Icons.payments_outlined,
             value: suggestion.fareAmount > 0
                 ? '${suggestion.fareAmount} RWF'
                 : '—',
@@ -905,7 +904,7 @@ class _BoardingCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              point.isBusPark ? LucideIcons.building2 : LucideIcons.bus,
+              point.isBusPark ? Icons.apartment : Icons.directions_bus,
               size: 18,
               color: Colors.white,
             ),
@@ -958,7 +957,7 @@ class _BoardingCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(LucideIcons.footprints,
+                    Icon(Icons.directions_walk,
                         size: 11, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Expanded(
@@ -1027,7 +1026,7 @@ class _StopsSectionState extends State<_StopsSection> {
                       color: _kRouteBlue.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(LucideIcons.mapPin,
+                    child: const Icon(Icons.location_on_outlined,
                         size: 16, color: _kRouteBlue),
                   ),
                   const SizedBox(width: 12),
@@ -1066,7 +1065,7 @@ class _StopsSectionState extends State<_StopsSection> {
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
                     duration: 250.ms,
-                    child: const Icon(LucideIcons.chevronDown,
+                    child: const Icon(Icons.keyboard_arrow_down,
                         size: 18,
                         color: AppColors.onSurfaceVariant),
                   ),
@@ -1261,7 +1260,7 @@ class _StepsDrawer extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.layoutList,
+                  const Icon(Icons.view_list,
                       color: AppColors.primary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1285,7 +1284,7 @@ class _StepsDrawer extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(LucideIcons.x, size: 20),
+                    icon: const Icon(Icons.close, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -1353,14 +1352,14 @@ class _StepsDrawer extends StatelessWidget {
 
   List<_StepData> _buildSteps() => [
         _StepData(
-          icon: LucideIcons.navigation2,
+          icon: Icons.navigation,
           color: _kWalkGreen,
           title: originLabel,
           subtitle: 'Your starting point',
           tag: 'START',
         ),
         _StepData(
-          icon: LucideIcons.footprints,
+          icon: Icons.directions_walk,
           color: _kWalkGreen,
           title: suggestion.walkToBoardingKm != null
               ? 'Walk ${suggestion.walkToBoardingKm!.toStringAsFixed(2)} km'
@@ -1373,8 +1372,8 @@ class _StepsDrawer extends StatelessWidget {
         ),
         _StepData(
           icon: suggestion.boardingPoint.isBusPark
-              ? LucideIcons.building2
-              : LucideIcons.bus,
+              ? Icons.apartment
+              : Icons.directions_bus,
           color: _kWalkGreen,
           title: suggestion.boardingPoint.pointName,
           subtitle: suggestion.boardingPoint.isBusPark
@@ -1385,7 +1384,7 @@ class _StepsDrawer extends StatelessWidget {
               : 'BUS STOP',
         ),
         _StepData(
-          icon: LucideIcons.bus,
+          icon: Icons.directions_bus,
           color: _kRouteBlue,
           title: 'Take ${suggestion.routeName}',
           subtitle:
@@ -1395,8 +1394,8 @@ class _StepsDrawer extends StatelessWidget {
         ),
         _StepData(
           icon: suggestion.destinationPoint.isBusPark
-              ? LucideIcons.building2
-              : LucideIcons.bus,
+              ? Icons.apartment
+              : Icons.directions_bus,
           color: _kAlightOrange,
           title: suggestion.destinationPoint.pointName,
           subtitle: suggestion.destinationPoint.isBusPark
@@ -1407,7 +1406,7 @@ class _StepsDrawer extends StatelessWidget {
               : 'BUS STOP',
         ),
         _StepData(
-          icon: LucideIcons.footprints,
+          icon: Icons.directions_walk,
           color: _kAlightOrange,
           title:
               'Walk ${suggestion.distanceToDestinationKm.toStringAsFixed(2)} km',
@@ -1417,7 +1416,7 @@ class _StepsDrawer extends StatelessWidget {
           isConnector: true,
         ),
         _StepData(
-          icon: LucideIcons.mapPin,
+          icon: Icons.location_on_outlined,
           color: AppColors.error,
           title: destLabel,
           subtitle: 'Your destination',
@@ -1704,7 +1703,7 @@ class _LiveVehiclesSection extends ConsumerWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    LucideIcons.bus,
+                    Icons.directions_bus,
                     size: 16,
                     color: liveAll.isEmpty
                         ? AppColors.onSurfaceVariant
@@ -1884,7 +1883,7 @@ class _LiveVehicleRow extends ConsumerWidget {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(LucideIcons.mapPin,
+                        const Icon(Icons.location_on_outlined,
                             size: 11, color: AppColors.onSurfaceVariant),
                         const SizedBox(width: 3),
                         Expanded(
@@ -1909,7 +1908,7 @@ class _LiveVehicleRow extends ConsumerWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(LucideIcons.users,
+                      const Icon(Icons.group_outlined,
                           size: 11, color: AppColors.onSurfaceVariant),
                       const SizedBox(width: 3),
                       Text(
@@ -1957,7 +1956,7 @@ class _LiveVehicleRow extends ConsumerWidget {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.bus,
+              child: const Icon(Icons.directions_bus,
                   size: 18, color: AppColors.primary),
             ),
             const SizedBox(width: 10),

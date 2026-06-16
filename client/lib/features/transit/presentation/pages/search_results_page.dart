@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/domain/entities/journey_entities.dart';
@@ -27,9 +26,9 @@ String _tierLabel(String tier) => switch (tier) {
     };
 
 IconData _tierIcon(String tier) => switch (tier) {
-      'TIER_1' => LucideIcons.checkCircle2,
-      'TIER_2' => LucideIcons.alertCircle,
-      _ => LucideIcons.alertTriangle,
+      'TIER_1' => Icons.check_circle_outline,
+      'TIER_2' => Icons.error_outline,
+      _ => Icons.warning_amber_outlined,
     };
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -105,7 +104,7 @@ class _SearchHeader extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(LucideIcons.arrowLeft,
+                    icon: const Icon(Icons.arrow_back,
                         color: Colors.white),
                     onPressed: () => context.pop(),
                   ),
@@ -146,7 +145,7 @@ class _SearchHeader extends StatelessWidget {
                       ),
                       Container(
                           width: 2, height: 24, color: Colors.white54),
-                      const Icon(LucideIcons.mapPin,
+                      const Icon(Icons.location_on_outlined,
                           color: Colors.white, size: 14),
                     ],
                   ),
@@ -213,7 +212,7 @@ class _RouteList extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
-                const Icon(LucideIcons.bus,
+                const Icon(Icons.directions_bus,
                     size: 16, color: AppColors.primary),
                 const SizedBox(width: 6),
                 Text(
@@ -343,8 +342,8 @@ class _RouteOptionCard extends StatelessWidget {
                 children: [
                   _PointDot(
                     icon: suggestion.boardingPoint.isBusPark
-                        ? LucideIcons.building2
-                        : LucideIcons.bus,
+                        ? Icons.apartment
+                        : Icons.directions_bus,
                     color: _kWalkGreen,
                   ),
                   const SizedBox(width: 10),
@@ -399,8 +398,8 @@ class _RouteOptionCard extends StatelessWidget {
                 children: [
                   _PointDot(
                     icon: suggestion.destinationPoint.isBusPark
-                        ? LucideIcons.building2
-                        : LucideIcons.bus,
+                        ? Icons.apartment
+                        : Icons.directions_bus,
                     color: _kAlightOrange,
                   ),
                   const SizedBox(width: 10),
@@ -467,7 +466,7 @@ class _RouteOptionCard extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
-                              Icon(LucideIcons.bus,
+                              Icon(Icons.directions_bus,
                                   size: 12, color: Colors.white),
                               SizedBox(width: 4),
                               Text('BUS',
@@ -508,14 +507,14 @@ class _RouteOptionCard extends StatelessWidget {
               child: Row(
                 children: [
                   _StatChip(
-                    icon: LucideIcons.footprints,
+                    icon: Icons.directions_walk,
                     label:
                         '${suggestion.totalWalkingKm.toStringAsFixed(2)} km total walk',
                     color: AppColors.primary,
                   ),
                   const SizedBox(width: 8),
                   _StatChip(
-                    icon: LucideIcons.timer,
+                    icon: Icons.timer_outlined,
                     label: '${suggestion.totalWalkingMinutes} min',
                     color: AppColors.primary,
                   ),
@@ -537,7 +536,7 @@ class _RouteOptionCard extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             )),
                         SizedBox(width: 4),
-                        Icon(LucideIcons.arrowRight,
+                        Icon(Icons.arrow_forward,
                             size: 12, color: Colors.white),
                       ],
                     ),
@@ -625,7 +624,7 @@ class _WalkSegment extends StatelessWidget {
       crossAxisAlignment:
           alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Icon(LucideIcons.footprints, size: 14, color: color),
+        Icon(Icons.directions_walk, size: 14, color: color),
         const SizedBox(height: 2),
         Text(
           km != null ? '${km!.toStringAsFixed(2)} km' : '— km',
@@ -704,7 +703,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.alertCircle,
+            const Icon(Icons.error_outline,
                 color: AppColors.error, size: 48),
             const SizedBox(height: 16),
             Text(message,
@@ -714,7 +713,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => context.pop(),
-              icon: const Icon(LucideIcons.arrowLeft, size: 18),
+              icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('Go Back'),
             ),
           ],
@@ -744,7 +743,7 @@ class _EmptyView extends StatelessWidget {
                 color: AppColors.surfaceContainerLow,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.bus,
+              child: const Icon(Icons.directions_bus,
                   size: 40, color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
@@ -759,7 +758,7 @@ class _EmptyView extends StatelessWidget {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => context.pop(),
-              icon: const Icon(LucideIcons.arrowLeft, size: 18),
+              icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('Search Again'),
             ),
           ],

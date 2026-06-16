@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, Bus, MapPin, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronUp, Bus, MapPin, Navigation, AlertTriangle, Wifi } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistance } from "../utils/geo";
 import type { TrackingVehicleDto, VehicleLiveSnapshot } from "../api/tracking.types";

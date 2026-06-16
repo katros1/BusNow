@@ -403,16 +403,18 @@ public class GpsIngestService {
                     // it is the vertex that is FARTHER from the start park.
                     org.locationtech.jts.geom.Coordinate end;
                     if (startCenter != null) {
-                        double dFirst = GeoUtils.haversineM(pts[0].y,              pts[0].x,
+                        // BusNow stores x=lat, y=lon in LineString coordinates
+                        double dFirst = GeoUtils.haversineM(pts[0].x,              pts[0].y,
                                                             startCenter[0],         startCenter[1]);
-                        double dLast  = GeoUtils.haversineM(pts[pts.length - 1].y, pts[pts.length - 1].x,
+                        double dLast  = GeoUtils.haversineM(pts[pts.length - 1].x, pts[pts.length - 1].y,
                                                             startCenter[0],         startCenter[1]);
                         // If path is reversed (last closer to start), terminal is at pts[0]
                         end = (dLast < dFirst) ? pts[0] : pts[pts.length - 1];
                     } else {
                         end = pts[pts.length - 1];
                     }
-                    distToTerminal = GeoUtils.distanceAlongLineM(line, lat, lon, end.y, end.x);
+                    // end.x = lat, end.y = lon (BusNow swapped storage)
+                    distToTerminal = GeoUtils.distanceAlongLineM(line, lat, lon, end.x, end.y);
                 }
             }
 

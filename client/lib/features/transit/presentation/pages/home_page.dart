@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/domain/entities/journey_entities.dart';
@@ -186,7 +185,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                       children: [
                         // From
                         _SearchFieldTile(
-                          icon: LucideIcons.navigation2,
+                          icon: Icons.navigation,
                           iconBg: AppColors.primary.withValues(alpha: 0.1),
                           iconColor: AppColors.primary,
                           label: 'FROM',
@@ -206,7 +205,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
 
                         // To
                         _SearchFieldTile(
-                          icon: LucideIcons.mapPin,
+                          icon: Icons.location_on_outlined,
                           iconBg: AppColors.primaryContainer,
                           iconColor: AppColors.primaryDark,
                           label: 'TO',
@@ -256,7 +255,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Icon(LucideIcons.search, size: 18),
+                                          Icon(Icons.search, size: 18),
                                           const SizedBox(width: 8),
                                           const Text(
                                             'Find Best Routes',
@@ -286,7 +285,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                     children: [
                       Expanded(
                         child: _QuickCard(
-                          icon: LucideIcons.sparkles,
+                          icon: Icons.auto_awesome,
                           label: 'AI Stop\nPicks',
                           color: AppColors.primary,
                           onTap: () => context.push('/ai-stops'),
@@ -295,7 +294,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _QuickCard(
-                          icon: LucideIcons.bookmark,
+                          icon: Icons.bookmark_outline,
                           label: 'Saved\nRoutes',
                           color: AppColors.primary,
                           onTap: () => context.push('/saved'),
@@ -330,7 +329,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
                                   color: AppColors.surfaceContainerLow,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(LucideIcons.clock,
+                                child: const Icon(Icons.access_time,
                                     size: 22, color: AppColors.onSurfaceVariant),
                               ),
                               const SizedBox(height: 14),
@@ -486,7 +485,7 @@ class _TopBar extends ConsumerWidget {
             children: [
               const SizedBox(width: 8),
               _HeaderIconButton(
-                icon: LucideIcons.user,
+                icon: Icons.person_outline,
                 onTap: () => context.push('/settings'),
               ),
             ],
@@ -611,7 +610,7 @@ class _SearchFieldTile extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(LucideIcons.navigation2,
+                                Icon(Icons.navigation,
                                     size: 9, color: AppColors.primary),
                                 const SizedBox(width: 3),
                                 const Text('GPS',
@@ -657,12 +656,12 @@ class _SearchFieldTile extends StatelessWidget {
                     color: AppColors.surfaceContainerHigh,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(LucideIcons.x,
+                  child: const Icon(Icons.close,
                       size: 11, color: AppColors.onSurfaceVariant),
                 ),
               )
             else
-              const Icon(LucideIcons.chevronRight,
+              const Icon(Icons.keyboard_arrow_right,
                   size: 15, color: AppColors.outlineVariant),
           ],
         ),
@@ -705,7 +704,7 @@ class _SwapRow extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(LucideIcons.arrowUpDown,
+                child: const Icon(Icons.swap_vert,
                     size: 16, color: AppColors.primary),
               ),
             ),
@@ -827,7 +826,7 @@ class _RecentTile extends StatelessWidget {
                 color: AppColors.surfaceContainerLow,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.clock,
+              child: const Icon(Icons.access_time,
                   size: 15, color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(width: 12),
@@ -853,7 +852,7 @@ class _RecentTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight,
+            const Icon(Icons.keyboard_arrow_right,
                 size: 15, color: AppColors.outlineVariant),
           ],
         ),
@@ -935,7 +934,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
                       color: AppColors.surfaceContainerLow,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(LucideIcons.arrowLeft,
+                    child: const Icon(Icons.arrow_back,
                         size: 18, color: AppColors.onSurface),
                   ),
                 ),
@@ -951,7 +950,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.search,
+                        const Icon(Icons.search,
                             size: 16,
                             color: AppColors.onSurfaceVariant),
                         const SizedBox(width: 10),
@@ -981,7 +980,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
                               _controller.clear();
                               setState(() => _query = '');
                             },
-                            child: const Icon(LucideIcons.x,
+                            child: const Icon(Icons.close,
                                 size: 16,
                                 color: AppColors.onSurfaceVariant),
                           ),
@@ -1020,7 +1019,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.wifiOff,
+              const Icon(Icons.wifi_off,
                   size: 44, color: AppColors.onSurfaceVariant),
               const SizedBox(height: 16),
               const Text(
@@ -1049,7 +1048,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(LucideIcons.searchX,
+                  const Icon(Icons.search_off,
                       size: 44, color: AppColors.onSurfaceVariant),
                   const SizedBox(height: 16),
                   Text(
@@ -1090,11 +1089,11 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
 
   Widget _buildSuggestions() {
     const suggestions = [
-      ('Nyabugogo Bus Terminal', LucideIcons.building2),
-      ('Kimironko Market', LucideIcons.shoppingBag),
-      ('Remera Bus Stop', LucideIcons.bus),
-      ('Kigali City Tower', LucideIcons.landmark),
-      ('Kacyiru', LucideIcons.mapPin),
+      ('Nyabugogo Bus Terminal', Icons.apartment),
+      ('Kimironko Market', Icons.shopping_bag_outlined),
+      ('Remera Bus Stop', Icons.directions_bus),
+      ('Kigali City Tower', Icons.account_balance_outlined),
+      ('Kacyiru', Icons.location_on_outlined),
     ];
 
     return Column(
@@ -1155,7 +1154,7 @@ class _PlaceSearchSheetState extends ConsumerState<_PlaceSearchSheet> {
                           ),
                         ),
                       ),
-                      const Icon(LucideIcons.arrowUpLeft,
+                      const Icon(Icons.north_west,
                           size: 14,
                           color: AppColors.outlineVariant),
                     ],
@@ -1192,7 +1191,7 @@ class _PlaceTile extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.mapPin,
+              child: const Icon(Icons.location_on_outlined,
                   size: 16, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
@@ -1223,7 +1222,7 @@ class _PlaceTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(LucideIcons.cornerDownLeft,
+            const Icon(Icons.subdirectory_arrow_left,
                 size: 14, color: AppColors.outlineVariant),
           ],
         ),

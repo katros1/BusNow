@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/core/widgets/app_widgets.dart';
 
@@ -21,7 +20,7 @@ class ProfilePage extends StatelessWidget {
                     CircleAvatar(
                       radius: 50,
                       backgroundColor: AppColors.primaryContainer,
-                      child: Icon(LucideIcons.user, size: 50, color: Colors.white),
+                      child: Icon(Icons.person_outline, size: 50, color: Colors.white),
                     ),
                     SizedBox(height: 16),
                     Text(
@@ -56,13 +55,13 @@ class ProfilePage extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    _MenuTile(icon: LucideIcons.creditCard, title: 'Payment Methods', subtitle: 'Visa ends in 4421'),
+                    _MenuTile(icon: Icons.credit_card, title: 'Payment Methods', subtitle: 'Visa ends in 4421'),
                     const Divider(height: 1, indent: 56),
-                    _MenuTile(icon: LucideIcons.ticket, title: 'My Tickets', subtitle: '3 active passes'),
+                    _MenuTile(icon: Icons.confirmation_number_outlined, title: 'My Tickets', subtitle: '3 active passes'),
                     const Divider(height: 1, indent: 56),
-                    _MenuTile(icon: LucideIcons.bell, title: 'Notification Prefs', subtitle: 'Push, Email'),
+                    _MenuTile(icon: Icons.notifications_outlined, title: 'Notification Prefs', subtitle: 'Push, Email'),
                     const Divider(height: 1, indent: 56),
-                    _MenuTile(icon: LucideIcons.shieldCheck, title: 'Privacy & Security'),
+                    _MenuTile(icon: Icons.verified_user_outlined, title: 'Privacy & Security'),
                   ],
                 ),
               ),
@@ -112,7 +111,7 @@ class _MenuTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.onSurfaceVariant),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
       subtitle: subtitle != null ? Text(subtitle!) : null,
-      trailing: const Icon(LucideIcons.chevronRight, size: 16),
+      trailing: const Icon(Icons.keyboard_arrow_right, size: 16),
       onTap: () {},
     );
   }

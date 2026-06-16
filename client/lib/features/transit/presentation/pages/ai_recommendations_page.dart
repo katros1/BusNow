@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/presentation/providers/journey_planner_providers.dart';
@@ -39,7 +38,7 @@ class _AiRecommendationsPageState
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(LucideIcons.sparkles, size: 18, color: AppColors.primary),
+            Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
             const SizedBox(width: 8),
             const Text(
               'AI Stop Finder',
@@ -81,7 +80,7 @@ class _AiRecommendationsPageState
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: const Icon(LucideIcons.sparkles,
+                    child: const Icon(Icons.auto_awesome,
                         color: Colors.white, size: 22),
                   ),
                   const SizedBox(width: 14),
@@ -242,7 +241,7 @@ class _GpsStatusRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              LucideIcons.navigation2,
+              Icons.navigation,
               size: 14,
               color: locAsync.value != null
                   ? AppColors.primary
@@ -316,7 +315,7 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.sparkles,
+              child: const Icon(Icons.auto_awesome,
                   size: 32, color: AppColors.primary),
             ),
             const SizedBox(height: 16),
@@ -359,7 +358,7 @@ class _ErrorCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(LucideIcons.alertCircle,
+          const Icon(Icons.error_outline,
               color: Color(0xFFD32F2F), size: 20),
           const SizedBox(width: 12),
           Expanded(
@@ -400,7 +399,7 @@ class _ResultsSection extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(LucideIcons.clock4,
+                const Icon(Icons.schedule,
                     size: 12, color: AppColors.primaryDark),
                 const SizedBox(width: 6),
                 Text(
@@ -511,7 +510,7 @@ class _BestStopCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(LucideIcons.mapPin,
+                child: const Icon(Icons.location_on_outlined,
                     color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
@@ -558,15 +557,15 @@ class _BestStopCard extends StatelessWidget {
           Row(
             children: [
               _StatChip(
-                  icon: LucideIcons.clock,
+                  icon: Icons.access_time,
                   label: '${stop.waitTime} min wait'),
               const SizedBox(width: 8),
               _StatChip(
-                  icon: LucideIcons.footprints,
+                  icon: Icons.directions_walk,
                   label: '${stop.walkingTime} min walk'),
               const SizedBox(width: 8),
               _StatChip(
-                  icon: LucideIcons.banknote,
+                  icon: Icons.payments_outlined,
                   label: '${stop.fare} RWF'),
             ],
           ),
@@ -574,11 +573,11 @@ class _BestStopCard extends StatelessWidget {
           Row(
             children: [
               _StatChip(
-                  icon: LucideIcons.bus,
+                  icon: Icons.directions_bus,
                   label: '${stop.busFrequency}/hr'),
               const SizedBox(width: 8),
               _StatChip(
-                  icon: LucideIcons.mapPin,
+                  icon: Icons.location_on_outlined,
                   label: '${stop.distanceKm.toStringAsFixed(2)} km away'),
             ],
           ),

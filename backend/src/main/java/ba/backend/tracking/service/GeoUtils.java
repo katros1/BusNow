@@ -7,7 +7,12 @@ import org.locationtech.jts.geom.Polygon;
 /**
  * Pure geographic math utilities for the tracking pipeline.
  * All coordinates are WGS-84 (latitude, longitude in decimal degrees).
- * JTS Coordinate convention: x = longitude, y = latitude.
+ *
+ * NOTE on BusNow coordinate storage: the frontend sends [lat, lng] pairs and
+ * LineStringGeometryMapper stores them as Coordinate(point[0], point[1]) without
+ * swapping, so in BusNow's DB: x = latitude, y = longitude  (opposite of JTS standard).
+ * Every access to route LineString coordinates therefore uses pts[i].x as latitude
+ * and pts[i].y as longitude throughout this class.
  */
 public final class GeoUtils {
 
@@ -40,9 +45,9 @@ public final class GeoUtils {
         int nearest = nearestVertex(pts, lat, lon);
         double d = 0.0;
         for (int i = 0; i < nearest; i++) {
-            d += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
+            d += haversineM(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
         }
-        d += haversineM(pts[nearest].y, pts[nearest].x, lat, lon);
+        d += haversineM(pts[nearest].x, pts[nearest].y, lat, lon);
         return d;
     }
 
@@ -75,16 +80,16 @@ public final class GeoUtils {
 
         // bus → first vertex past busIdx
         int next = Math.min(busIdx + 1, pts.length - 1);
-        double total = haversineM(busLat, busLon, pts[next].y, pts[next].x);
+        double total = haversineM(busLat, busLon, pts[next].x, pts[next].y);
 
         // walk intermediate vertices
         for (int i = next; i < tgtIdx; i++) {
-            total += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
+            total += haversineM(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
         }
 
         // last vertex → target (tgtIdx >= next after the guard above)
         if (tgtIdx >= next) {
-            total += haversineM(pts[tgtIdx].y, pts[tgtIdx].x, targetLat, targetLon);
+            total += haversineM(pts[tgtIdx].x, pts[tgtIdx].y, targetLat, targetLon);
         }
 
         return total;
@@ -100,16 +105,16 @@ public final class GeoUtils {
 
         double totalLen = 0.0;
         for (int i = 0; i < pts.length - 1; i++) {
-            totalLen += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
+            totalLen += haversineM(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
         }
         if (totalLen == 0.0) return 0.0;
 
         int busIdx = nearestVertex(pts, busLat, busLon);
         double traveled = 0.0;
         for (int i = 0; i < busIdx; i++) {
-            traveled += haversineM(pts[i].y, pts[i].x, pts[i + 1].y, pts[i + 1].x);
+            traveled += haversineM(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
         }
-        traveled += haversineM(pts[busIdx].y, pts[busIdx].x, busLat, busLon);
+        traveled += haversineM(pts[busIdx].x, pts[busIdx].y, busLat, busLon);
 
         return Math.min(100.0, (traveled / totalLen) * 100.0);
     }
@@ -149,7 +154,7 @@ public final class GeoUtils {
      * closer to {@code startCenter} than the first vertex (i.e. the path is stored
      * end → start), the raw value is inverted: {@code 100 − raw}.
      *
-     * @param route       route LineString (JTS convention: x = lon, y = lat)
+     * @param route       route LineString (BusNow storage: x = lat, y = lon)
      * @param busLat      bus latitude
      * @param busLon      bus longitude
      * @param startCenter {@code [lat, lon]} centroid of the start bus-park,
@@ -161,9 +166,9 @@ public final class GeoUtils {
         if (startCenter == null) return raw;
         Coordinate[] pts = route.getCoordinates();
         if (pts.length < 2) return raw;
-        double distFirst = haversineM(pts[0].y,              pts[0].x,
+        double distFirst = haversineM(pts[0].x,              pts[0].y,
                                       startCenter[0],         startCenter[1]);
-        double distLast  = haversineM(pts[pts.length - 1].y, pts[pts.length - 1].x,
+        double distLast  = haversineM(pts[pts.length - 1].x, pts[pts.length - 1].y,
                                       startCenter[0],         startCenter[1]);
         // Last vertex closer to start park → path is stored end→start → invert
         return (distLast < distFirst) ? Math.max(0.0, Math.min(100.0, 100.0 - raw)) : raw;
@@ -175,7 +180,8 @@ public final class GeoUtils {
         int idx = 0;
         double minD = Double.MAX_VALUE;
         for (int i = 0; i < pts.length; i++) {
-            double d = haversineM(lat, lon, pts[i].y, pts[i].x);
+            // BusNow stores x=lat, y=lon (frontend sends [lat,lng]; mapper stores as-is)
+            double d = haversineM(lat, lon, pts[i].x, pts[i].y);
             if (d < minD) { minD = d; idx = i; }
         }
         return idx;

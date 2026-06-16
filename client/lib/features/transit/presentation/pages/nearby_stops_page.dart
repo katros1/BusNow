@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/features/journey_planner/presentation/providers/journey_planner_providers.dart';
 
@@ -19,7 +18,7 @@ class NearbyStopsPage extends ConsumerWidget {
         backgroundColor: AppColors.surfaceContainerLowest,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, color: AppColors.onSurface),
+          icon: const Icon(Icons.keyboard_arrow_left, color: AppColors.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -173,7 +172,7 @@ class _NearbyStopContent extends ConsumerWidget {
                             ],
                           ),
                           child: const Icon(
-                            LucideIcons.bus,
+                            Icons.directions_bus,
                             color: Colors.white,
                             size: 20,
                           ),
@@ -195,7 +194,7 @@ class _NearbyStopContent extends ConsumerWidget {
                       color: AppColors.primary.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(LucideIcons.bus, color: AppColors.primary, size: 24),
+                    child: const Icon(Icons.directions_bus, color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

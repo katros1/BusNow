@@ -6,7 +6,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -58,17 +57,17 @@ class SavedPlace {
   IconData get icon {
     switch (iconKey) {
       case 'home':
-        return LucideIcons.home;
+        return Icons.home_outlined;
       case 'work':
-        return LucideIcons.briefcase;
+        return Icons.work_outline;
       case 'school':
-        return LucideIcons.graduationCap;
+        return Icons.school_outlined;
       case 'heart':
-        return LucideIcons.heart;
+        return Icons.favorite_outline;
       case 'star':
-        return LucideIcons.star;
+        return Icons.star_outline;
       default:
-        return LucideIcons.mapPin;
+        return Icons.location_on_outlined;
     }
   }
 }
@@ -252,7 +251,7 @@ class SavedRoutesPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SectionLabel(
-                    icon: LucideIcons.mapPin,
+                    icon: Icons.location_on_outlined,
                     title: 'My Places',
                     subtitle: 'Tap to navigate · Hold to edit',
                   ),
@@ -265,7 +264,7 @@ class SavedRoutesPage extends ConsumerWidget {
                   if (trips.isNotEmpty) ...[
                     const SizedBox(height: 40),
                     _SectionLabel(
-                      icon: LucideIcons.clock,
+                      icon: Icons.access_time,
                       title: 'Recent Trips',
                       subtitle: 'Last ${trips.length} journeys',
                     ),
@@ -439,17 +438,17 @@ class _PlaceCard extends ConsumerWidget {
   IconData _icon() {
     switch (iconKey) {
       case 'home':
-        return LucideIcons.home;
+        return Icons.home_outlined;
       case 'work':
-        return LucideIcons.briefcase;
+        return Icons.work_outline;
       case 'school':
-        return LucideIcons.graduationCap;
+        return Icons.school_outlined;
       case 'heart':
-        return LucideIcons.heart;
+        return Icons.favorite_outline;
       case 'star':
-        return LucideIcons.star;
+        return Icons.star_outline;
       default:
-        return LucideIcons.mapPin;
+        return Icons.location_on_outlined;
     }
   }
 
@@ -513,7 +512,7 @@ class _PlaceCard extends ConsumerWidget {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        LucideIcons.check,
+                        Icons.check,
                         size: 12,
                         color: AppColors.primary,
                       ),
@@ -624,7 +623,7 @@ class _AddCard extends ConsumerWidget {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.plus, color: AppColors.onSurfaceVariant, size: 28),
+            Icon(Icons.add, color: AppColors.onSurfaceVariant, size: 28),
             SizedBox(height: 10),
             Text(
               'Add Place',
@@ -678,7 +677,7 @@ class _EmptyState extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              LucideIcons.mapPin,
+              Icons.location_on_outlined,
               size: 32,
               color: AppColors.primary,
             ),
@@ -770,7 +769,7 @@ class _RecentTripTile extends ConsumerWidget {
                 color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.clock,
+              child: const Icon(Icons.access_time,
                   size: 16, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
@@ -794,7 +793,7 @@ class _RecentTripTile extends ConsumerWidget {
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Icon(LucideIcons.arrowRight,
+                        child: Icon(Icons.arrow_forward,
                             size: 12, color: AppColors.onSurfaceVariant),
                       ),
                       Flexible(
@@ -821,7 +820,7 @@ class _RecentTripTile extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(LucideIcons.chevronRight,
+            const Icon(Icons.keyboard_arrow_right,
                 size: 15, color: AppColors.outlineVariant),
           ],
         ),
@@ -864,7 +863,7 @@ class _RecentTripActionSheet extends ConsumerWidget {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: const Icon(LucideIcons.arrowRightLeft, color: AppColors.primary, size: 20),
+                child: const Icon(Icons.swap_horiz, color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -897,7 +896,7 @@ class _RecentTripActionSheet extends ConsumerWidget {
               onPressed: () {
                 Navigator.pop(context);
               },
-              icon: const Icon(LucideIcons.navigation2, size: 16),
+              icon: const Icon(Icons.navigation, size: 16),
               label: const Text('Plan this trip again'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -917,7 +916,7 @@ class _RecentTripActionSheet extends ConsumerWidget {
                     trip.toLat, trip.toLon);
                 Navigator.pop(context);
               },
-              icon: const Icon(LucideIcons.trash2, size: 16, color: AppColors.error),
+              icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
               label: const Text('Remove from history',
                   style: TextStyle(color: AppColors.error)),
               style: OutlinedButton.styleFrom(
@@ -1011,7 +1010,7 @@ class _PlaceActionSheetState extends ConsumerState<_PlaceActionSheet> {
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.navigation2, size: 14, color: AppColors.primary),
+                const Icon(Icons.navigation, size: 14, color: AppColors.primary),
                 const SizedBox(width: 8),
                 const Text(
                   'From: My current GPS location',
@@ -1031,7 +1030,7 @@ class _PlaceActionSheetState extends ConsumerState<_PlaceActionSheet> {
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.mapPin, size: 14, color: AppColors.primary),
+                const Icon(Icons.location_on_outlined, size: 14, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -1049,7 +1048,7 @@ class _PlaceActionSheetState extends ConsumerState<_PlaceActionSheet> {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.error),
+                const Icon(Icons.error_outline, size: 14, color: AppColors.error),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -1072,7 +1071,7 @@ class _PlaceActionSheetState extends ConsumerState<_PlaceActionSheet> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(LucideIcons.navigation2, size: 16),
+                  : const Icon(Icons.navigation, size: 16),
               label: Text(_loading ? 'Getting location…' : 'Navigate here'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -1194,7 +1193,7 @@ class _PlaceEditSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _ActionTile(
-            icon: LucideIcons.pencil,
+            icon: Icons.edit_outlined,
             label: 'Change location',
             subtitle: place.name,
             onTap: () async {
@@ -1222,7 +1221,7 @@ class _PlaceEditSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _ActionTile(
-            icon: LucideIcons.trash2,
+            icon: Icons.delete_outline,
             label: 'Remove this place',
             subtitle: 'Cannot be undone',
             color: AppColors.error,
@@ -1290,7 +1289,7 @@ class _ActionTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(LucideIcons.chevronRight, size: 16, color: c.withValues(alpha: 0.4)),
+            Icon(Icons.keyboard_arrow_right, size: 16, color: c.withValues(alpha: 0.4)),
           ],
         ),
       ),
@@ -1325,10 +1324,10 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
   bool _labelEdited = false;
 
   static const _icons = [
-    ('map-pin', LucideIcons.mapPin, 'Place'),
-    ('star', LucideIcons.star, 'Favourite'),
-    ('school', LucideIcons.graduationCap, 'School'),
-    ('heart', LucideIcons.heart, 'Care'),
+    ('map-pin', Icons.location_on_outlined, 'Place'),
+    ('star', Icons.star_outline, 'Favourite'),
+    ('school', Icons.school_outlined, 'School'),
+    ('heart', Icons.favorite_outline, 'Care'),
   ];
 
   @override
@@ -1491,8 +1490,8 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
                 children: [
                   Icon(
                     _pickedPlace != null
-                        ? LucideIcons.mapPin
-                        : LucideIcons.search,
+                        ? Icons.location_on_outlined
+                        : Icons.search,
                     size: 18,
                     color: _pickedPlace != null
                         ? AppColors.primary
@@ -1516,7 +1515,7 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
                     ),
                   ),
                   Icon(
-                    LucideIcons.chevronRight,
+                    Icons.keyboard_arrow_right,
                     size: 16,
                     color: AppColors.outlineVariant,
                   ),
@@ -1640,7 +1639,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                       color: AppColors.surfaceContainerLow,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(LucideIcons.arrowLeft,
+                    child: const Icon(Icons.arrow_back,
                         size: 18, color: AppColors.onSurface),
                   ),
                 ),
@@ -1656,7 +1655,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(LucideIcons.search,
+                        const Icon(Icons.search,
                             size: 16, color: AppColors.onSurfaceVariant),
                         const SizedBox(width: 10),
                         Expanded(
@@ -1685,7 +1684,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                               _controller.clear();
                               setState(() => _query = '');
                             },
-                            child: const Icon(LucideIcons.x,
+                            child: const Icon(Icons.close,
                                 size: 16, color: AppColors.onSurfaceVariant),
                           ),
                       ],
@@ -1732,7 +1731,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.wifiOff, size: 40, color: AppColors.onSurfaceVariant),
+              Icon(Icons.wifi_off, size: 40, color: AppColors.onSurfaceVariant),
               SizedBox(height: 12),
               Text('Search unavailable',
                   style: TextStyle(
@@ -1753,7 +1752,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(LucideIcons.searchX,
+                  const Icon(Icons.search_off,
                       size: 40, color: AppColors.onSurfaceVariant),
                   const SizedBox(height: 12),
                   Text(
@@ -1788,12 +1787,12 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
 
   Widget _buildSuggestions() {
     const suggestions = [
-      ('Nyabugogo Bus Terminal', LucideIcons.building2),
-      ('Kimironko Market', LucideIcons.shoppingBag),
-      ('Remera Bus Stop', LucideIcons.bus),
-      ('Kigali City Tower', LucideIcons.landmark),
-      ('Kacyiru', LucideIcons.mapPin),
-      ('Gisozi', LucideIcons.mapPin),
+      ('Nyabugogo Bus Terminal', Icons.apartment),
+      ('Kimironko Market', Icons.shopping_bag_outlined),
+      ('Remera Bus Stop', Icons.directions_bus),
+      ('Kigali City Tower', Icons.account_balance_outlined),
+      ('Kacyiru', Icons.location_on_outlined),
+      ('Gisozi', Icons.location_on_outlined),
     ];
 
     return Column(
@@ -1852,7 +1851,7 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
                           ),
                         ),
                       ),
-                      const Icon(LucideIcons.arrowUpLeft,
+                      const Icon(Icons.north_west,
                           size: 14, color: AppColors.outlineVariant),
                     ],
                   ),
@@ -1983,7 +1982,7 @@ class _GpsTile extends StatelessWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: AppColors.primary),
                     )
-                  : const Icon(LucideIcons.navigation2,
+                  : const Icon(Icons.navigation,
                       size: 16, color: AppColors.primary),
             ),
             const SizedBox(width: 14),
@@ -2039,7 +2038,7 @@ class _ResultTile extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.mapPin, size: 16, color: AppColors.primary),
+              child: const Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -2066,7 +2065,7 @@ class _ResultTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(LucideIcons.cornerDownLeft,
+            const Icon(Icons.subdirectory_arrow_left,
                 size: 14, color: AppColors.outlineVariant),
           ],
         ),

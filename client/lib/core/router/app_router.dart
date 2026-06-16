@@ -8,6 +8,7 @@ import 'package:client/features/transit/presentation/pages/nearby_stops_page.dar
 import 'package:client/features/transit/presentation/pages/ai_recommendations_page.dart';
 import 'package:client/features/profile/presentation/pages/settings_page.dart';
 import 'package:client/core/widgets/root_layout.dart';
+import 'package:client/features/splash/presentation/pages/splash_page.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -15,8 +16,13 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/',
+    initialLocation: '/splash',
     routes: [
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/splash',
+        builder: (context, state) => const SplashPage(),
+      ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => RootLayout(child: child),

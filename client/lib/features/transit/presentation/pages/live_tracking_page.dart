@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:client/core/theme/app_colors.dart';
 import 'package:client/core/widgets/glass_container.dart';
@@ -236,7 +235,7 @@ class _LiveTrackingPageState extends ConsumerState<LiveTrackingPage> {
                           ),
                         ],
                       ),
-                      child: const Icon(LucideIcons.mapPin,
+                      child: const Icon(Icons.location_on_outlined,
                           color: Colors.white, size: 16),
                     ),
                   ),
@@ -268,7 +267,7 @@ class _LiveTrackingPageState extends ConsumerState<LiveTrackingPage> {
                   setState(() => _followBus = true);
                   _mapController.move(busPos, 15);
                 },
-                child: const Icon(LucideIcons.locate, size: 18),
+                child: const Icon(Icons.location_searching, size: 18),
               ),
             ),
 
@@ -284,7 +283,7 @@ class _LiveTrackingPageState extends ConsumerState<LiveTrackingPage> {
                     child: const GlassContainer(
                       padding: EdgeInsets.all(12),
                       child:
-                          Icon(LucideIcons.chevronLeft, color: Colors.white),
+                          Icon(Icons.keyboard_arrow_left, color: Colors.white),
                     ),
                   ),
                   GlassContainer(
@@ -424,7 +423,7 @@ class _BusMarkerState extends State<_BusMarker>
                 ),
               ],
             ),
-            child: const Icon(LucideIcons.bus, color: Colors.white, size: 15),
+            child: const Icon(Icons.directions_bus, color: Colors.white, size: 15),
           ),
         ],
       ),
@@ -483,7 +482,7 @@ class _SnapCard extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.25),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.bus, color: Colors.white),
+              child: const Icon(Icons.directions_bus, color: Colors.white),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -512,20 +511,20 @@ class _SnapCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _InfoChip(
-              icon: LucideIcons.gauge,
+              icon: Icons.speed,
               label: 'Speed',
               value: snap.gpsValid && snap.speedKmh != null
                   ? '${snap.speedKmh!.round()} km/h'
                   : '—',
             ),
             _InfoChip(
-              icon: LucideIcons.mapPin,
+              icon: Icons.location_on_outlined,
               label: 'Stop',
               value: snap.currentStopName ??
                   (snap.hasTrip ? 'In transit' : 'At terminal'),
             ),
             _InfoChip(
-              icon: LucideIcons.users,
+              icon: Icons.group_outlined,
               label: 'On board',
               value: '${snap.passengersOnBoard}',
             ),
@@ -535,7 +534,7 @@ class _SnapCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(LucideIcons.chevronRight,
+              const Icon(Icons.keyboard_arrow_right,
                   color: Colors.orangeAccent, size: 13),
               const SizedBox(width: 5),
               Expanded(

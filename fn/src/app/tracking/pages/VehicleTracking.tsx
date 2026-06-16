@@ -14,7 +14,7 @@ import { useVehicleSocket } from "../hooks/useVehicleSocket";
 import { RouteLine } from "../components/RouteLine";
 import { TrackingMapTab } from "../components/TrackingMapTab";
 import { formatDistance } from "../utils/geo";
-import type { VehicleLiveSnapshot } from "../api/tracking.types";
+import type { VehicleLiveSnapshot, RouteDetailDto } from "../api/tracking.types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const NAVBAR_H = 60;
@@ -201,7 +201,7 @@ export default function VehicleTracking() {
     enabled:  !!routeId,
     staleTime: 120_000,
     // Keep previous route visible while a new routeId loads (direction toggle)
-    placeholderData: (prev: typeof routeDetail) => prev,
+    placeholderData: (prev: RouteDetailDto | undefined) => prev,
   });
 
   // Auto-collapse header when user switches to map/satellite to give map max space

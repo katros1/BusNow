@@ -84,7 +84,8 @@ export function stopProgresses(
   path: [number, number][]
 ): number[] {
   return stops.map((stop) => {
-    const [sLat, sLon] = centroid(stop.coordinates);
+    // stop.coordinates are [lon, lat] from backend — convert before computing centroid
+    const [sLat, sLon] = centroid(lonLatToLatLon(stop.coordinates));
     return pathProgress(sLat, sLon, path);
   });
 }
@@ -105,7 +106,8 @@ export function nextStopAhead(
   for (let i = 0; i < stops.length; i++) {
     const prog = stopProgs[i] ?? 0;
     if (prog > busProgress + 0.005) {          // 0.5% ahead threshold
-      const [sLat, sLon] = centroid(stops[i].coordinates);
+      // stop.coordinates are [lon, lat] from backend — convert before computing centroid
+      const [sLat, sLon] = centroid(lonLatToLatLon(stops[i].coordinates));
       return { stop: stops[i], distanceM: haversineM(busLat, busLon, sLat, sLon) };
     }
   }

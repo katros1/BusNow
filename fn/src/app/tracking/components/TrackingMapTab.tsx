@@ -5,7 +5,7 @@ import {
   MapContainer, TileLayer, Marker, Polyline,
   Polygon, Tooltip, useMap, useMapEvents,
 } from "react-leaflet";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Locate, Navigation2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RouteDetailDto, VehicleLiveSnapshot } from "../api/tracking.types";
@@ -173,7 +173,9 @@ export function TrackingMapTab({
 
   const active  = liveEvent?.tripId != null;
   const heading = liveEvent?.headingDeg;
-  const busIcon = makeBusIcon(active, heading);
+  // Memoize icon — creating a new DivIcon every render causes Leaflet to
+  // tear down and recreate the marker DOM element on every snapshot update (ticking).
+  const busIcon = useMemo(() => makeBusIcon(active, heading), [active, heading]);
 
   return (
     // Wrapper takes 100% of the flex-1 TabsContent — no fixed height needed
@@ -215,7 +217,7 @@ export function TrackingMapTab({
         )}
 
         {/* ── Start bus-park polygon — green ──────────────────────────── */}
-        {routeDetail && (routeDetail.startBusPark?.coordinates?.length ?? 0) >= 3 && (
+        {routeDetail?.startBusPark?.coordinates?.length >= 3 && (
           <Polygon
             positions={lonLatToLatLon(routeDetail.startBusPark.coordinates)}
             pathOptions={{ color: "#166534", weight: 2, fillColor: "#22c55e", fillOpacity: 0.3 }}
@@ -228,7 +230,7 @@ export function TrackingMapTab({
         )}
 
         {/* ── End bus-park polygon — red ───────────────────────────────── */}
-        {routeDetail && (routeDetail.endBusPark?.coordinates?.length ?? 0) >= 3 && (
+        {routeDetail?.endBusPark?.coordinates?.length >= 3 && (
           <Polygon
             positions={lonLatToLatLon(routeDetail.endBusPark.coordinates)}
             pathOptions={{ color: "#991b1b", weight: 2, fillColor: "#ef4444", fillOpacity: 0.25 }}

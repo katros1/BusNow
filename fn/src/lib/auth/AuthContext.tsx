@@ -1,9 +1,9 @@
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
   useState,
-  ReactNode,
+  type ReactNode,
   useCallback,
 } from "react";
 import {
@@ -11,6 +11,7 @@ import {
   User,
   WebStorageStateStore,
   type UserManagerSettings,
+  type IdTokenClaims,
 } from "oidc-client-ts";
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -25,7 +26,6 @@ const keycloakConfig: UserManagerSettings = {
   scope: "openid profile email offline_access", // Added offline_access for refresh tokens
   userStore: new WebStorageStateStore({ store: window.localStorage }),
   automaticSilentRenew: true, // Enable automatic token renewal
-  validateIdTokenByIssuer: true,
   includeIdTokenInSilentRenew: true,
   staleStateAgeInSeconds: 300,
 };
@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh_token: tokenResponse.refresh_token,
       token_type: tokenResponse.token_type,
       scope: tokenResponse.scope,
-      profile: {}, // In a real app, decode this from id_token
+      profile: {} as IdTokenClaims,
       expires_at: Math.floor(Date.now() / 1000) + tokenResponse.expires_in,
     });
 

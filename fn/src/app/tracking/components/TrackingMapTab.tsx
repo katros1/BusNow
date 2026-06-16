@@ -215,7 +215,7 @@ export function TrackingMapTab({
         )}
 
         {/* ── Start bus-park polygon — green ──────────────────────────── */}
-        {routeDetail?.startBusPark?.coordinates?.length >= 3 && (
+        {routeDetail && (routeDetail.startBusPark?.coordinates?.length ?? 0) >= 3 && (
           <Polygon
             positions={lonLatToLatLon(routeDetail.startBusPark.coordinates)}
             pathOptions={{ color: "#166534", weight: 2, fillColor: "#22c55e", fillOpacity: 0.3 }}
@@ -228,7 +228,7 @@ export function TrackingMapTab({
         )}
 
         {/* ── End bus-park polygon — red ───────────────────────────────── */}
-        {routeDetail?.endBusPark?.coordinates?.length >= 3 && (
+        {routeDetail && (routeDetail.endBusPark?.coordinates?.length ?? 0) >= 3 && (
           <Polygon
             positions={lonLatToLatLon(routeDetail.endBusPark.coordinates)}
             pathOptions={{ color: "#991b1b", weight: 2, fillColor: "#ef4444", fillOpacity: 0.25 }}

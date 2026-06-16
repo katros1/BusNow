@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { stopProgresses, pathProgress, formatDistance, lonLatToLatLon } from "../utils/geo";
+import { stopProgresses, pathProgress, formatDistance, lonLatToLatLon, haversineM, centroid } from "../utils/geo";
 import type { RouteDetailDto, VehicleLiveSnapshot } from "../api/tracking.types";
 
 interface RouteLineProps {
@@ -32,8 +32,22 @@ export function RouteLine({ routeDetail, liveEvent, hasActiveTrip }: RouteLinePr
     () => [...routeDetail.stops].sort((a, b) => a.sequence - b.sequence),
     [routeDetail.stops]
   );
-  // Backend returns [lon, lat] — swap to [lat, lon] for all geo calculations
-  const path = useMemo(() => lonLatToLatLon(routeDetail.routePath), [routeDetail.routePath]);
+  // Backend returns [lon, lat] — swap to [lat, lon] for all geo calculations.
+  // Also normalise direction: if the route geometry was drawn end→start (reversed),
+  // flip it so path[0] is always near startBusPark.  This ensures stop dots and the
+  // client-side fallback progress both count from left (start) to right (end).
+  const path = useMemo(() => {
+    const raw = lonLatToLatLon(routeDetail.routePath);
+    if (raw.length < 2) return raw;
+    if ((routeDetail.startBusPark?.coordinates?.length ?? 0) >= 3) {
+      const startC = centroid(lonLatToLatLon(routeDetail.startBusPark.coordinates));
+      const dFirst = haversineM(raw[0][0],              raw[0][1],              startC[0], startC[1]);
+      const dLast  = haversineM(raw[raw.length - 1][0], raw[raw.length - 1][1], startC[0], startC[1]);
+      if (dLast < dFirst) return [...raw].reverse();
+    }
+    return raw;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeDetail.routePath, routeDetail.startBusPark?.coordinates]);
 
   // Bus position along the route (0–1).
   // Priority: server-computed progressPercent → client-computed from lat/lon → null.

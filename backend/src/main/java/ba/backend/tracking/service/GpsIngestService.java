@@ -127,7 +127,10 @@ public class GpsIngestService {
         if (state.activeTripId() != null) {
             RouteEntity ar = findActiveRoute(state, routes);
             if (ar != null && ar.getGeo() != null) {
-                earlyProgress = GeoUtils.progressPercent(ar.getGeo(), lat, lon);
+                double[] sc = ar.getStartBusPark() != null
+                        ? GeoUtils.centroidSafe(ar.getStartBusPark().getPolygon())
+                        : null;
+                earlyProgress = GeoUtils.progressPercentNormalized(ar.getGeo(), lat, lon, sc);
             }
         }
 
@@ -387,16 +390,33 @@ public class GpsIngestService {
 
         if (displayRoute != null && displayRoute.getGeo() != null) {
             var line = displayRoute.getGeo();
+            // Centroid of start park — used to detect whether the LineString is stored
+            // start→end or end→start (routes drawn in the wrong direction).
+            double[] startCenter = displayRoute.getStartBusPark() != null
+                    ? GeoUtils.centroidSafe(displayRoute.getStartBusPark().getPolygon())
+                    : null;
 
             if (activeRoute != null) {
                 org.locationtech.jts.geom.Coordinate[] pts = line.getCoordinates();
-                if (pts.length > 0) {
-                    org.locationtech.jts.geom.Coordinate end = pts[pts.length - 1];
+                if (pts.length >= 2) {
+                    // Determine which end of the LineString is the end-terminal:
+                    // it is the vertex that is FARTHER from the start park.
+                    org.locationtech.jts.geom.Coordinate end;
+                    if (startCenter != null) {
+                        double dFirst = GeoUtils.haversineM(pts[0].y,              pts[0].x,
+                                                            startCenter[0],         startCenter[1]);
+                        double dLast  = GeoUtils.haversineM(pts[pts.length - 1].y, pts[pts.length - 1].x,
+                                                            startCenter[0],         startCenter[1]);
+                        // If path is reversed (last closer to start), terminal is at pts[0]
+                        end = (dLast < dFirst) ? pts[0] : pts[pts.length - 1];
+                    } else {
+                        end = pts[pts.length - 1];
+                    }
                     distToTerminal = GeoUtils.distanceAlongLineM(line, lat, lon, end.y, end.x);
                 }
             }
 
-            progressPct = GeoUtils.progressPercent(line, lat, lon);
+            progressPct = GeoUtils.progressPercentNormalized(line, lat, lon, startCenter);
         }
 
         String nextStopName = stopRes.nextStopName();

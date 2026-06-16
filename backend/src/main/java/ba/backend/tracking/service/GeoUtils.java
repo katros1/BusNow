@@ -124,6 +124,51 @@ public final class GeoUtils {
         return new double[]{c.getY(), c.getX()};
     }
 
+    /**
+     * Centroid of a Polygon as {@code [lat, lon]}, correcting for swapped lon/lat storage.
+     *
+     * <p>Heuristic: if {@code |y| > 10} and {@code |x| < 5} the polygon was stored with
+     * longitude in the Y field and latitude in X (common mis-import for Rwanda where
+     * lat ≈ −2°, lon ≈ 30°).  In that case the values are swapped before returning.
+     */
+    public static double[] centroidSafe(Polygon polygon) {
+        if (polygon == null) return null;
+        var c = polygon.getCentroid();
+        double rawY = c.getY(), rawX = c.getX();
+        if (Math.abs(rawY) > 10 && Math.abs(rawX) < 5) {
+            return new double[]{rawX, rawY}; // lat was stored in X, lon in Y
+        }
+        return new double[]{rawY, rawX}; // normal JTS: y = lat, x = lon
+    }
+
+    /**
+     * Direction-aware route progress (0.0 – 100.0).
+     *
+     * <p>Delegates to {@link #progressPercent} and then checks whether the LineString
+     * starts near the start bus-park or near the end.  If the <em>last</em> vertex is
+     * closer to {@code startCenter} than the first vertex (i.e. the path is stored
+     * end → start), the raw value is inverted: {@code 100 − raw}.
+     *
+     * @param route       route LineString (JTS convention: x = lon, y = lat)
+     * @param busLat      bus latitude
+     * @param busLon      bus longitude
+     * @param startCenter {@code [lat, lon]} centroid of the start bus-park,
+     *                    or {@code null} to skip direction correction
+     */
+    public static double progressPercentNormalized(
+            LineString route, double busLat, double busLon, double[] startCenter) {
+        double raw = progressPercent(route, busLat, busLon);
+        if (startCenter == null) return raw;
+        Coordinate[] pts = route.getCoordinates();
+        if (pts.length < 2) return raw;
+        double distFirst = haversineM(pts[0].y,              pts[0].x,
+                                      startCenter[0],         startCenter[1]);
+        double distLast  = haversineM(pts[pts.length - 1].y, pts[pts.length - 1].x,
+                                      startCenter[0],         startCenter[1]);
+        // Last vertex closer to start park → path is stored end→start → invert
+        return (distLast < distFirst) ? Math.max(0.0, Math.min(100.0, 100.0 - raw)) : raw;
+    }
+
     // ── Private ───────────────────────────────────────────────────────────────
 
     static int nearestVertex(Coordinate[] pts, double lat, double lon) {

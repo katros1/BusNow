@@ -14,7 +14,7 @@ import { useVehicleSocket } from "../hooks/useVehicleSocket";
 import { RouteLine } from "../components/RouteLine";
 import { TrackingMapTab } from "../components/TrackingMapTab";
 import { formatDistance } from "../utils/geo";
-import type { VehicleLiveSnapshot } from "../api/tracking.types";
+import type { VehicleLiveSnapshot, RouteDetailDto } from "../api/tracking.types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const NAVBAR_H = 60;
@@ -195,7 +195,7 @@ export default function VehicleTracking() {
   //     before any snapshot arrives — so the map shows the route right away.
   const routeId = snap?.routeId ?? routeIdFromUrl ?? null;
 
-  const { data: routeDetail } = useQuery({
+  const { data: routeDetail } = useQuery<RouteDetailDto>({
     queryKey: trackingKeys.route(routeId ?? ""),
     queryFn:  () => trackingApi.getRouteDetail(routeId!),
     enabled:  !!routeId,

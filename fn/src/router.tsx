@@ -34,7 +34,7 @@ const layoutRoute = createRoute({
     // We check localStorage directly for the 'beforeLoad' check 
     // because useAuth is a hook and can't be used here easily.
     // TanStack Router context could be used for a cleaner approach.
-    const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:1001";
+    const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:1001";
     const user = localStorage.getItem(`oidc.user:${keycloakUrl}/realms/busnow-client:busnow-client`);
     if (!user && location.pathname !== "/login") {
       throw redirect({ to: "/login" });

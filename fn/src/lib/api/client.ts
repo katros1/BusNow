@@ -17,7 +17,7 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:1001";
+  const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:1001";
   const userKey = `oidc.user:${keycloakUrl}/realms/busnow-client:busnow-client`;
   const userJson = localStorage.getItem(userKey);
   const user = userJson ? JSON.parse(userJson) : null;

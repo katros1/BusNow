@@ -15,7 +15,7 @@ import {
 } from "oidc-client-ts";
 
 // ── Configuration ────────────────────────────────────────────────────────────
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL ?? "http://localhost:1001";
+const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:1001";
 
 const keycloakConfig: UserManagerSettings = {
   authority: `${KEYCLOAK_URL}/realms/busnow-client`,

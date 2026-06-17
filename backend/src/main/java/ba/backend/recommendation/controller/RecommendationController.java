@@ -39,11 +39,9 @@ public class RecommendationController {
 
         RecommendationResponse response = recommendationService.getRecommendations(request);
 
-        if (response.success() != null && response.success()) {
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.badRequest().body(response);
-        }
+        // Always return 200 — success/failure is expressed in the response body.
+        // HTTP 400 is reserved for structural validation errors (@Valid on the request).
+        return ResponseEntity.ok(response);
     }
 
     /**

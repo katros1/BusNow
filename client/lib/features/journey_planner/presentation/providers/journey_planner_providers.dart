@@ -417,6 +417,22 @@ class AiRecommendationNotifier
       );
       state = AsyncValue.data(AiRecommendationResult.fromJson(
           response.data as Map<String, dynamic>));
+    } on DioException catch (e, st) {
+      // Backend may return 4xx with a JSON body containing a human-readable
+      // error message. Try to parse and surface it as a normal data state so
+      // the UI shows _ErrorCard instead of a raw exception string.
+      final body = e.response?.data;
+      if (body is Map<String, dynamic>) {
+        try {
+          state = AsyncValue.data(AiRecommendationResult.fromJson(body));
+          return;
+        } catch (_) {}
+      }
+      // Fallback: show a friendly string rather than the raw DioException.
+      state = AsyncValue.error(
+        'Could not reach the AI service. Check your connection and try again.',
+        st,
+      );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

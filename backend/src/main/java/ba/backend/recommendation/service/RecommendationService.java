@@ -21,8 +21,10 @@ public class RecommendationService {
 
     // List of valid destinations
     private static final List<String> VALID_DESTINATIONS = List.of(
-            "Nyabugogo", "Kigali Heights", "Kacyiru", "Kisimenti",
-            "Remera", "Chez Lando", "Kimironko"
+            "Downtown", "Kimicanga", "La Colombiere", "RIB", "MINIJUST",
+            "Gishushu", "Kigali Heights", "Beausejour", "Kisimenti",
+            "Stadium", "Remera", "Sonatubes", "Chez Lando",
+            "Kwa Rwahama", "Kicukiro Centre", "Kimironko"
     );
 
     /**

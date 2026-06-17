@@ -17,14 +17,22 @@ class AiRecommendationsPage extends ConsumerStatefulWidget {
 class _AiRecommendationsPageState
     extends ConsumerState<AiRecommendationsPage> {
   String? _selectedDestination;
+  final _searchController = TextEditingController();
 
-  void _onDestinationTap(String dest, dynamic position) {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onDestinationSelected(String dest) {
+    final pos = ref.read(locationProvider).value;
     setState(() => _selectedDestination = dest);
-    if (position == null) return;
+    if (pos == null) return;
     ref.read(aiRecommendationNotifierProvider.notifier).fetch(
           destination: dest,
-          lat: position.latitude as double,
-          lon: position.longitude as double,
+          lat: pos.latitude,
+          lon: pos.longitude,
         );
   }
 
@@ -111,7 +119,7 @@ class _AiRecommendationsPageState
 
             const SizedBox(height: 28),
 
-            // ── Destination chips ─────────────────────────────────────────────
+            // ── Destination search ────────────────────────────────────────────
             const Text(
               'WHERE ARE YOU GOING?',
               style: TextStyle(
@@ -122,49 +130,126 @@ class _AiRecommendationsPageState
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: kAiDestinations.map((dest) {
-                final selected = _selectedDestination == dest;
-                return GestureDetector(
-                  onTap: () => _onDestinationTap(dest, locAsync.value),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: selected
-                            ? AppColors.primary
-                            : AppColors.outlineVariant,
-                        width: selected ? 1.5 : 1,
-                      ),
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : [],
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue val) {
+                if (val.text.isEmpty) return kAiDestinations;
+                return kAiDestinations.where((d) =>
+                    d.toLowerCase().contains(val.text.toLowerCase()));
+              },
+              onSelected: _onDestinationSelected,
+              fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  onSubmitted: (_) => onSubmitted(),
+                  decoration: InputDecoration(
+                    hintText: 'Search destination…',
+                    hintStyle: const TextStyle(
+                        fontSize: 14, color: AppColors.onSurfaceVariant),
+                    prefixIcon: const Icon(Icons.search,
+                        size: 20, color: AppColors.onSurfaceVariant),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                size: 18, color: AppColors.onSurfaceVariant),
+                            onPressed: () {
+                              controller.clear();
+                              setState(() => _selectedDestination = null);
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          BorderSide(color: AppColors.outlineVariant),
                     ),
-                    child: Text(
-                      dest,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : AppColors.onSurface,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          BorderSide(color: AppColors.outlineVariant),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 6,
+                    borderRadius: BorderRadius.circular(12),
+                    shadowColor: Colors.black12,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        separatorBuilder: (_, __) => const Divider(
+                            height: 1,
+                            indent: 48,
+                            endIndent: 16,
+                            color: AppColors.outlineVariant),
+                        itemBuilder: (context, i) {
+                          final dest = options.elementAt(i);
+                          final isSelected = dest == _selectedDestination;
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(
+                              Icons.location_on_outlined,
+                              size: 18,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.onSurfaceVariant,
+                            ),
+                            title: Text(
+                              dest,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.onSurface,
+                              ),
+                            ),
+                            onTap: () => onSelected(dest),
+                          );
+                        },
                       ),
                     ),
                   ),
                 );
-              }).toList(),
+              },
             ),
+            // Selected destination badge
+            if (_selectedDestination != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Going to $_selectedDestination',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 24),
 
@@ -252,9 +337,9 @@ class _GpsStatusRow extends StatelessWidget {
           Expanded(
             child: locAsync.when(
               data: (pos) => pos != null
-                  ? Text(
-                      '${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}',
-                      style: const TextStyle(
+                  ? const Text(
+                      'Your current location',
+                      style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: AppColors.onSurface),

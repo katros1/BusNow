@@ -301,12 +301,21 @@ final nearestStopProvider =
 // ─── AI Recommendations ───────────────────────────────────────────────────────
 
 const kAiDestinations = [
-  'Nyabugogo',
+  'Downtown',
+  'Kimicanga',
+  'La Colombiere',
+  'RIB',
+  'MINIJUST',
+  'Gishushu',
   'Kigali Heights',
-  'Kacyiru',
+  'Beausejour',
   'Kisimenti',
+  'Stadium',
   'Remera',
+  'Sonatubes',
   'Chez Lando',
+  'Kwa Rwahama',
+  'Kicukiro Centre',
   'Kimironko',
 ];
 

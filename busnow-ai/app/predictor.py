@@ -118,9 +118,22 @@ class BusNowPredictor:
         # Encode categorical variables
         dest_encoder = self.encoders['destination_encoder']
         stop_encoder = self.encoders['stop_encoder']
-        
+
+        # If the destination wasn't in the original training set, map it to
+        # the nearest known class by stop_order so the model still runs.
+        known_dests = list(dest_encoder.classes_)
+        if destination not in known_dests:
+            stop_info = STOPS_DATA.get(destination, {})
+            order = stop_info.get('stop_order', 1)
+            # Pick known destination closest in stop_order
+            def _closest(d):
+                return abs(STOPS_DATA.get(d, {}).get('stop_order', 1) - order)
+            destination = min(known_dests, key=_closest)
         dest_encoded = dest_encoder.transform([destination])[0]
-        stop_encoded = stop_encoder.transform([stop_name])[0]
+
+        known_stops = list(stop_encoder.classes_)
+        proxy_stop = stop_name if stop_name in known_stops else known_stops[0]
+        stop_encoded = stop_encoder.transform([proxy_stop])[0]
         
         # Create feature array (must match training order!)
         features = [[

@@ -5,6 +5,7 @@ Handles loading model and making predictions
 
 import joblib
 import numpy as np
+import pandas as pd
 from typing import List, Dict, Tuple, Optional
 from datetime import datetime
 
@@ -108,52 +109,61 @@ class BusNowPredictor:
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
         
-        # Get values
-        is_peak = 1 if self._is_peak_hour(hour) else 0
-        is_wknd = 1 if self._is_weekend(day_of_week) else 0
+        # Scalar features
+        is_peak   = 1 if self._is_peak_hour(hour) else 0
+        is_wknd   = 1 if self._is_weekend(day_of_week) else 0
         bus_frequency = self._get_bus_frequency(stop_name, hour, day_of_week)
         avg_wait_time = self._get_wait_time(stop_name, hour, day_of_week)
-        fare = self._get_fare(stop_name, destination)
-        
-        # Encode categorical variables
+        fare          = self._get_fare(stop_name, destination)
+
+        # is_terminal: 1 for the first and last stops on the route
+        stop_order  = STOPS_DATA.get(stop_name, {}).get('stop_order', 0)
+        max_order   = max(v['stop_order'] for v in STOPS_DATA.values())
+        is_terminal = 1 if stop_order in (1, max_order) else 0
+
+        # --- Encode categoricals with graceful fallback ---
         dest_encoder = self.encoders['destination_encoder']
         stop_encoder = self.encoders['stop_encoder']
 
-        # If the destination wasn't in the original training set, map it to
-        # the nearest known class by stop_order so the model still runs.
+        # If destination wasn't in training, map to closest known dest by stop_order
         known_dests = list(dest_encoder.classes_)
         if destination not in known_dests:
-            stop_info = STOPS_DATA.get(destination, {})
-            order = stop_info.get('stop_order', 1)
-            # Pick known destination closest in stop_order
-            def _closest(d):
-                return abs(STOPS_DATA.get(d, {}).get('stop_order', 1) - order)
-            destination = min(known_dests, key=_closest)
+            dest_order = STOPS_DATA.get(destination, {}).get('stop_order', 1)
+            def _closest_dest(d):
+                return abs(STOPS_DATA.get(d, {}).get('stop_order', 1) - dest_order)
+            destination = min(known_dests, key=_closest_dest)
         dest_encoded = dest_encoder.transform([destination])[0]
 
+        # If stop_name wasn't in training, fall back to first known stop
         known_stops = list(stop_encoder.classes_)
-        proxy_stop = stop_name if stop_name in known_stops else known_stops[0]
+        proxy_stop  = stop_name if stop_name in known_stops else known_stops[0]
         stop_encoded = stop_encoder.transform([proxy_stop])[0]
-        
-        # Create feature array (must match training order!)
-        features = [[
+
+        # Build a named DataFrame so the model receives the exact column order
+        # it was trained with — avoids the "feature names" ValueError.
+        feature_cols = self.encoders['feature_columns']
+        # Expected order: hour, day_of_week, is_peak, is_weekend, distance_km,
+        #                 bus_frequency, wait_time, fare, is_terminal,
+        #                 stop_encoded, destination_encoded
+        features = pd.DataFrame([[
             hour,
             day_of_week,
             is_peak,
             is_wknd,
+            distance_to_stop,   # distance_km
             bus_frequency,
-            avg_wait_time,
-            distance_to_stop,
+            avg_wait_time,      # wait_time
             fare,
-            dest_encoded,
-            stop_encoded
-        ]]
-        
+            is_terminal,
+            stop_encoded,
+            dest_encoded,       # destination_encoded (last)
+        ]], columns=feature_cols)
+
         # Predict
-        prediction = self.model.predict(features)[0]
+        prediction    = self.model.predict(features)[0]
         probabilities = self.model.predict_proba(features)[0]
-        confidence = round(max(probabilities) * 100, 1)
-        
+        confidence    = round(float(max(probabilities)) * 100, 1)
+
         return int(prediction), confidence
     
     def get_recommendations(
